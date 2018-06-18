@@ -282,6 +282,12 @@
   dependencies:
     csstype "^2.2.0"
 
+"@types/uuid@^3.4.3":
+  version "3.4.3"
+  resolved "https://registry.yarnpkg.com/@types/uuid/-/uuid-3.4.3.tgz#121ace265f5569ce40f4f6d0ff78a338c732a754"
+  dependencies:
+    "@types/node" "*"
+
 abab@^1.0.4:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/abab/-/abab-1.0.4.tgz#5faad9c2c07f60dd76770f71cf025b62a63cfd4e"
@@ -8312,6 +8318,10 @@ sort-keys@^1.0.0:
   resolved "https://registry.yarnpkg.com/sort-keys/-/sort-keys-1.1.2.tgz#441b6d4d346798f1b4e49e8920adfba0e543f9ad"
   dependencies:
     is-plain-obj "^1.0.0"
+
+sortedlist@^0.3.1:
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/sortedlist/-/sortedlist-0.3.1.tgz#1536ed80bcfe3688b60dee58156a01bb2bfbf5d2"
 
 source-list-map@^2.0.0:
   version "2.0.0"
