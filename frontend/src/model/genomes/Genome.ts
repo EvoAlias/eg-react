@@ -11,7 +11,7 @@ export interface GenomeConfig {
     cytobands: any;
     defaultRegion: OpenInterval;
     defaultTracks: TrackModel[];
-    twoBitUrl: string;
+    twoBitURL: string;
 }
 
 /**
@@ -58,6 +58,17 @@ export class Genome {
      */
     getChromosome(name: string): Chromosome {
         return this._nameToChromosome[name] || null;
+    }
+
+
+    /**
+     * Returns all chromosomes in genome
+     * 
+     * @returns {Chromosome[]}
+     * @memberof Genome
+     */
+    getAllChromosomes(): Chromosome[] {
+        return this._chromosomes.slice();
     }
 
     /**
