@@ -56,27 +56,30 @@ class App extends React.Component {
     }
 
     render() {
-        const {genomeConfig, viewRegion, tracks, onNewViewRegion} = this.props;
-        if (!genomeConfig) {
-            return <div className="container-fluid"><GenomePicker /></div>;
-        }
-
         return (
-        <div className="container-fluid">
-            <GenomeNavigator selectedRegion={viewRegion} onRegionSelected={onNewViewRegion} />
-            <TrackContainer />
-            <TrackManager
-                addedTracks={tracks}
-                onTracksAdded={this.addTracks}
-                onTrackRemoved={this.removeTrack}
-            />
-            <hr/>
-            <button onClick={() => this.setState({isShowingRegionSetUI: !this.state.isShowingRegionSetUI})}>
-                Show/hide region set config
-            </button>
-            {this.state.isShowingRegionSetUI ? <RegionSetSelector genome={genomeConfig.genome} /> : null}
-        </div>
-        );
+            <VrContext/>
+        )
+        // const {genomeConfig, viewRegion, tracks, onNewViewRegion} = this.props;
+        // if (!genomeConfig) {
+        //     return <div className="container-fluid"><GenomePicker /></div>;
+        // }
+
+        // return (
+        // <div className="container-fluid">
+        //     <GenomeNavigator selectedRegion={viewRegion} onRegionSelected={onNewViewRegion} />
+        //     <TrackContainer />
+        //     <TrackManager
+        //         addedTracks={tracks}
+        //         onTracksAdded={this.addTracks}
+        //         onTrackRemoved={this.removeTrack}
+        //     />
+        //     <hr/>
+        //     <button onClick={() => this.setState({isShowingRegionSetUI: !this.state.isShowingRegionSetUI})}>
+        //         Show/hide region set config
+        //     </button>
+        //     {this.state.isShowingRegionSetUI ? <RegionSetSelector genome={genomeConfig.genome} /> : null}
+        // </div>
+        // );
     }
 }
 

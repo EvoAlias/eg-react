@@ -1,7 +1,8 @@
 import { Entity } from "./Entity";
 
-export interface Component<T = {}> {
+export interface Component {}
+
+export interface ComponentConstructor<T extends Component> {
     name: string;
-    defaults?: T;
-    getDefaults?: () => T;
+    new(...args: any[]): T;
 }

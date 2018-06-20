@@ -282,11 +282,21 @@
   dependencies:
     csstype "^2.2.0"
 
+"@types/three@^0.92.6":
+  version "0.92.6"
+  resolved "https://registry.yarnpkg.com/@types/three/-/three-0.92.6.tgz#4b30ef58c0631749a9e68bd68322943bb6eed76e"
+  dependencies:
+    "@types/webvr-api" "*"
+
 "@types/uuid@^3.4.3":
   version "3.4.3"
   resolved "https://registry.yarnpkg.com/@types/uuid/-/uuid-3.4.3.tgz#121ace265f5569ce40f4f6d0ff78a338c732a754"
   dependencies:
     "@types/node" "*"
+
+"@types/webvr-api@*":
+  version "0.0.34"
+  resolved "https://registry.yarnpkg.com/@types/webvr-api/-/webvr-api-0.0.34.tgz#8fa49028de925c7b8bce3d559d3374ce2c89ee28"
 
 abab@^1.0.4:
   version "1.0.4"
@@ -8780,6 +8790,10 @@ test-exclude@^4.2.1:
 text-table@0.2.0:
   version "0.2.0"
   resolved "https://registry.yarnpkg.com/text-table/-/text-table-0.2.0.tgz#7f5ee823ae805207c00af2df4a84ec3fcfa570b4"
+
+three@^0.93.0:
+  version "0.93.0"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.93.0.tgz#3fd6c367ef4554abbb6e16ad69936283e895c123"
 
 throat@^4.0.0:
   version "4.1.0"

@@ -1,4 +1,4 @@
-import { Component } from "./Component";
+import { Component, ComponentConstructor } from "./Component";
 import { Interval } from "interval-tree2";
 import { System } from "./System";
 import { ECS } from "./ECS";
@@ -6,26 +6,19 @@ import { ECS } from "./ECS";
 export type EntityID = number | string;
 
 export class Entity {
-    components: {[name: string]: {}} = {}
+    components: {[name: string]: Component} = {}
     systems: System[] = [];
 
     // a change in components, which requires a re compute of eligability
     systemsDirty = false;
-    transform: THREE.Group;
     ecs: ECS = null;
 
-    constructor(public id: EntityID, components: Component[] = []) {
+    constructor(public id: EntityID, components: (Component | ComponentConstructor<{}>)[] = []) {
         for (let c of components) {
-            if (typeof c == 'function') {
-                const component: any = c;
-                if (component.getDefaults) {
-                    this.components[component.name] = component.getDefaults()
-                } else {
-                    this.components[component.name] = Object.assign({}, component.defaults)
-                }
+            if (typeof c === 'function') {
+                this.components[c.name] = new c();
             } else {
-                const component = c;
-                this.components[component.constructor.name] = component;
+                this.components[c.constructor.name] = c;
             }
         }
     }
@@ -55,39 +48,17 @@ export class Entity {
         }
     }
 
-    addComponent<T = {}>(component: Component, data: T) {
-        this.components[component.name] = data || {};
+    addComponent(component: Component) {
+        this.components[component.constructor.name] = component;
         this.setSystemsDirty();
     }
 
-    getComponent<T = {}>(component: Component<T>): T {
-        return this.components[component.name] as T;
+    getComponent<T extends Component>(constructor: ComponentConstructor<T>): T {
+        return this.components[constructor.name] as T;
     }
 
-    hasComponent<T = {}>(component: Component<T>): boolean {
-        return !!this.components[component.name]
-    }
-
-    updateComponent<T = {}>(comp: Component, data: T) {
-        let component = this.components[comp.name]
-
-        if (!component) {
-            this.addComponent(comp, data)
-        } else {
-            let keys = Object.keys(data);
-
-            for (let i = 0, key; key = keys[i]; i += 1) {
-                component[key] = data[key];
-            }
-        }
-    }
-
-    updateComponents(componentData: {[name: string]: {}}) {
-        let components = Object.keys(componentData);
-
-        for (let component in components) {
-            this.updateComponent({ name: component}, componentData[component])
-        }
+    hasComponent<T extends Component>(constructor: ComponentConstructor<T>): boolean {
+        return !!this.components[constructor.name]
     }
 
     dispose() {

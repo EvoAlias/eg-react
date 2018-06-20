@@ -103,14 +103,9 @@ export class ECS {
         let elapsed = now - this.lastUpdate;
 
         for (let system of this.systems) {
-            if (this.updateCounter % system.frequency > 0) {
-                break;
-            }
-
             if (this.entitiesSystemsDirty.length) {
                 this.cleanDirtyEntities();
             }
-
             system.updateAll(elapsed)
         }
 

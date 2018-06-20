@@ -2,15 +2,12 @@ import { Entity } from "./Entity";
 import { ECS } from "./ECS";
 
 export class System {
-    frequency: number;
     entities: Entity[];
     ecs: ECS;
 
     name = System.name;
 
-    constructor(frequency = 1) {
-        // how many updates before system gets run
-        this.frequency = frequency;
+    constructor() {
     }
 
     addToECS(ecs: ECS) {
@@ -36,9 +33,7 @@ export class System {
 
     updateAll(elapsed: number) {
         this.preUpdate();
-        for (let entity of this.entities) {
-            this.update(entity, elapsed)
-        }
+        this.update(this.entities, elapsed)
         this.postUpdate();
     }
 
@@ -56,7 +51,7 @@ export class System {
 
     exit(entity: Entity) {}
 
-    update(entity: Entity, elapsed: number) {}
+    update(entities: Entity[], elapsed: number) {}
 
     dispose() {}
 }

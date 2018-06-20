@@ -6,37 +6,30 @@ import HG19 from '../../model/genomes/hg19/hg19';
 import { ChromosomeRenderSystem } from '../../viz3D/systems/ChromosomeRenderSystem';
 
 import * as THREE from 'three';
-
+import { SceneManager } from '../../viz3D/models/SceneManager';
+import './VrContext.css';
 
 
 type State = Readonly<{
-    ecs: ECS;
+    sceneManager: SceneManager;
 }>
 
 class VrContext extends Component<State> {
     state: State = null;
-    threeRootElement: HTMLElement;
+    threeRootElement: HTMLCanvasElement;
 
     componentDidMount() {
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.z = 4;
-        const renderer = new THREE.WebGLRenderer({antialias: true});
-        renderer.setClearColor("#000000");
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        const sceneManager = new SceneManager(this.threeRootElement);
         this.setState({
-            ecs: new ECS([
-                new World(scene, camera, renderer),
-                new GenomeTreeSystem(HG19),
-                new ChromosomeRenderSystem()
-            ])
+            sceneManager
         })
     }
 
     render() {
         return (
-            <canvas>
-            </canvas>
+            <div className="VrContext">
+                <canvas width="800px" height="640px" ref={element => this.threeRootElement = element}></canvas>
+            </div>
         )
     }
 

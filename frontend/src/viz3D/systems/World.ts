@@ -26,6 +26,6 @@ export class World extends System {
         const renderer = new THREE.WebGLRenderer({antialias: true});
         renderer.setClearColor("#000000");
         renderer.setSize(window.innerWidth, window.innerHeight);
-        return new World()
+        return new World(scene, camera, renderer);
     }
 }
