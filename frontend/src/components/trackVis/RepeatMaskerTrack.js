@@ -9,7 +9,6 @@ import Tooltip from './commonComponents/tooltip/Tooltip';
 import withTooltip from './commonComponents/tooltip/withTooltip';
 import configOptionMerging from './commonComponents/configOptionMerging';
 
-import IntervalArranger from '../../model/interval/IntervalArranger';
 import RepeatMaskerFeature from '../../model/RepeatMaskerFeature';
 import { AnnotationDisplayModes } from '../../model/DisplayModes';
 
@@ -17,7 +16,6 @@ import './commonComponents/tooltip/Tooltip.css';
 
 export const MAX_BASES_PER_PIXEL = 6000; // The higher this number, the more zooming out we support
 const TOP_PADDING = 3;
-const INTERVAL_ARRANGER = new IntervalArranger(0);
 export const DEFAULT_OPTIONS = {
     maxRows: 1,
     height: 40,
@@ -63,23 +61,22 @@ class RepeatTrack extends React.PureComponent {
     /**
      * Renders one bar.
      * 
-     * @param {RepeatMaskerFeature} repeatFeature - feature to render
-     * @param {OpenInterval} absInterval - location of the feature in navigation context
-     * @param {OpenInterval} xRange - x coordinates the annotation will occupy
+     * @param {PlacedFeature} placedFeature - feature and draw location
      * @param {any} unused - unused
      * @param {any} unused2 - unused
      * @param {number} index - iteration index
      * @return {JSX.Element} element visualizing the feature
      */
-    renderAnnotation(repeatFeature, absInterval, xRange, unused, unused2, index) {
-        if (xRange.getLength() <= 0) {
+    renderAnnotation(placedFeature, unused, unused2, index) {
+        const {feature, xLocation} = placedFeature;
+        if (xLocation.getLength() <= 0) {
             return null;
         }
         const {categoryColors, height} = this.props.options;
-        const categoryId = repeatFeature.getCategoryId();
+        const categoryId = feature.getCategoryId();
         const color = categoryColors[categoryId];
 
-        const y = this.state.valueToY(repeatFeature.value);
+        const y = this.state.valueToY(feature.value);
         const drawHeight = height - y;
         if (drawHeight <= 0) {
             return null;
@@ -87,13 +84,13 @@ class RepeatTrack extends React.PureComponent {
 
         return <rect
             key={index}
-            x={xRange.start}
+            x={xLocation.start}
             y={y}
-            width={xRange.getLength()}
+            width={xLocation.getLength()}
             height={drawHeight}
             fill={color}
             fillOpacity={0.75}
-            onClick={event => this.renderTooltip(event, repeatFeature)}
+            onClick={event => this.renderTooltip(event, feature)}
         />;
     }
 
@@ -107,15 +104,15 @@ class RepeatTrack extends React.PureComponent {
         const {trackModel, onHideTooltip} = this.props;
         const tooltip = (
             <Tooltip pageX={event.pageX} pageY={event.pageY} onClose={onHideTooltip} >
-                <ul style={{margin: 0, padding: '0px 5px 5px', listStyleType: 'none'}} >
-                    <li>
+                <div>
+                    <div>
                         <span className="Tooltip-major-text" style={{marginRight: 5}} >{feature.getName()}</span>
                         <span className="Tooltip-minor-text" >{feature.getClassDetails()}</span>
-                    </li>
-                    <li>{`${feature.getLocus().toString()} (${feature.getLocus().getLength()}bp)`}</li>
-                    <li>{"(1 - divergence%) = " + feature.value.toFixed(2)}</li>
-                    <li className="Tooltip-minor-text" >{trackModel.getDisplayLabel()}</li>
-                </ul>
+                    </div>
+                    <div>{feature.getLocus().toString()} ({feature.getLocus().getLength()}bp)</div>
+                    <div>(1 - divergence%) = {feature.value.toFixed(2)}</div>
+                    <div className="Tooltip-minor-text" >{trackModel.getDisplayLabel()}</div>
+                </div>
             </Tooltip>
         );
         this.props.onShowTooltip(tooltip);
@@ -137,7 +134,7 @@ class RepeatTrack extends React.PureComponent {
             return <AnnotationTrack
                 {...this.props}
                 legend={<TrackLegend trackModel={trackModel} height={options.height} axisScale={this.state.valueToY} />}
-                intervalArranger={INTERVAL_ARRANGER}
+                featurePadding={0}
                 rowHeight={options.height}
                 getAnnotationElement={this.renderAnnotation}
             />;

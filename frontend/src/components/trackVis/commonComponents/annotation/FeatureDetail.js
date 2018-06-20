@@ -4,7 +4,7 @@ import Feature from '../../../../model/Feature';
 import '../../commonComponents/tooltip/Tooltip.css';
 
 /**
- * Box that contains feature details when a annotation is clicked.
+ * Box that contains feature details when a annotation is cdivcked.
  * 
  * @author Silas Hsu
  */
@@ -17,11 +17,11 @@ class FeatureDetail extends React.PureComponent {
         const feature = this.props.feature;
         const featureName = feature.getName();
         return (
-        <ul style={{margin: 0, padding: '0px 5px 5px', listStyleType: 'none'}} >
-            {featureName ? <li className="Tooltip-major-text" >{featureName}</li> : null}
-            <li>{`${feature.getLocus().toString()} (${feature.getLocus().getLength()}bp)`}</li>
-            {feature.getHasStrand() ? <li>Strand: {feature.getStrand()}</li> : null}
-        </ul>
+        <div>
+            {featureName ? <div className="Tooltip-major-text" >{featureName}</div> : null}
+            <div>{feature.getLocus().toString()} ({feature.getLocus().getLength()}bp)</div>
+            {feature.getHasStrand() ? <div>Strand: {feature.getStrand()}</div> : null}
+        </div>
         );
     }
 }
