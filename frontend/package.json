@@ -11,6 +11,7 @@
     "test": "react-app-rewired test --env=jsdom --scripts-version react-scripts-ts"
   },
   "dependencies": {
+    "@types/three": "^0.92.6",
     "interval-tree2": "^1.1.0"
   },
   "devDependencies": {
@@ -29,7 +30,6 @@
     "@types/react": "^16.3.17",
     "@types/react-dom": "^16.0.6",
     "@types/react-redux": "^6.0.2",
-    "@types/three": "^0.92.6",
     "@types/uuid": "^3.4.3",
     "axios": "^0.16.2",
     "d3": "^4.12.0",
@@ -60,7 +60,7 @@
     "script-loader": "^0.7.2",
     "sortedlist": "^0.3.1",
     "tcp-port-used": "^0.1.2",
-    "three": "^0.93.0",
+    "three": "^0.72.0",
     "typescript": "^2.9.1",
     "underscore": "^1.8.3",
     "uuid": "^3.2.1",

@@ -2,8 +2,6 @@ import { System } from "../models/System";
 import { Entity } from "../models/Entity";
 import { GameObject } from "../components/GameObject";
 
-import * as THREE from 'three';
-
 export class World extends System {
     scene: THREE.Scene;
     camera: THREE.Camera;

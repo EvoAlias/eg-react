@@ -1,6 +1,8 @@
 import { Entity } from "./Entity";
 
-export interface Component {}
+export interface Component {
+    name: string;
+}
 
 export interface ComponentConstructor<T extends Component> {
     name: string;

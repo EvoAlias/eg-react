@@ -1,5 +1,5 @@
 import { Entity } from "./Entity";
-import { System } from "./System";
+import { System, SystemConstructor } from "./System";
 import * as uuid from 'uuid/v4';
 
 // TODO watch changes on entity system dirty
@@ -13,11 +13,12 @@ export class ECS {
     lastUpdate = performance.now();
 
     constructor(systems: System[] = []) {
+        this.systems = systems;
         this.systems.forEach(s => this.addSystem(s))
     }
 
     getEntityById(id: number) {
-        return this.entities.find(e => e.id == id);
+        return this.entities.find(e => e.id === id);
     }
 
     addEntity(entity: Entity) {
@@ -39,7 +40,7 @@ export class ECS {
     }
 
     removeEntityById(entityId: number): Entity {
-        const index = this.entities.findIndex(e => e.id == entityId);
+        const index = this.entities.findIndex(e => e.id === entityId);
         if (index !== -1) {
             const entity = this.entities[index];
             entity.dispose()
@@ -52,7 +53,7 @@ export class ECS {
     }
 
     removeEntityIfDirty(entity: Entity) {
-        let index = this.entitiesSystemsDirty.indexOf(entity);
+        const index = this.entitiesSystemsDirty.indexOf(entity);
 
         if (index !== -1) {
             this.entitiesSystemsDirty.splice(index, 1)
@@ -61,19 +62,21 @@ export class ECS {
 
     addSystem(system: System) {
         this.systems.push(system);
-        for (let entity of this.entities) {
-            if (system.test(entity))
-            system.addEntity(entity);
-        }
         system.addToECS(this);
+        for (const entity of this.entities) {
+            if (system.test(entity)) {
+            system.addEntity(entity);
+            }
+        }
+        system.init();
     }
 
-    getSystem<T extends System>(system: Function) {
-        return this.systems.find(s => s.constructor == system) as T;
+    getSystem<T extends System>(system: SystemConstructor) {
+        return this.systems.find(s => s.constructor === system) as T;
     }
 
     removeSystem(system: System) {
-        let index = this.systems.indexOf(system);
+        const index = this.systems.indexOf(system);
 
         if (index !== -1) {
             this.systems.splice(index, 1);
@@ -82,8 +85,8 @@ export class ECS {
     }
 
     cleanDirtyEntities() {
-        for (let entity of this.entitiesSystemsDirty) {
-            for (let system of this.systems) {
+        for (const entity of this.entitiesSystemsDirty) {
+            for (const system of this.systems) {
                 const index = entity.systems.indexOf(system);
                 const test = system.test(entity);
 
@@ -99,10 +102,10 @@ export class ECS {
     }
 
     update() {
-        let now = performance.now()
-        let elapsed = now - this.lastUpdate;
+        const now = performance.now()
+        const elapsed = now - this.lastUpdate;
 
-        for (let system of this.systems) {
+        for (const system of this.systems) {
             if (this.entitiesSystemsDirty.length) {
                 this.cleanDirtyEntities();
             }

@@ -12,6 +12,7 @@ import withCurrentGenome from './components/withCurrentGenome';
 
 import DisplayedRegionModel from './model/DisplayedRegionModel';
 import TrackModel from './model/TrackModel';
+import { VrContext } from './components/vr/VrContext';
 
 import './App.css';
 

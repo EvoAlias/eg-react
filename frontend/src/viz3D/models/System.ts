@@ -1,8 +1,12 @@
 import { Entity } from "./Entity";
 import { ECS } from "./ECS";
 
+export interface SystemConstructor {
+    new (...args: any[]): System
+}
+
 export class System {
-    entities: Entity[];
+    entities: Entity[] = [];
     ecs: ECS;
 
     name = System.name;
@@ -12,7 +16,6 @@ export class System {
 
     addToECS(ecs: ECS) {
         this.ecs = ecs;
-        this.init();
     }
 
     addEntity(entity: Entity) {
@@ -22,7 +25,7 @@ export class System {
     }
 
     removeEntity(entity: Entity) {
-        let index = this.entities.indexOf(entity);
+        const index = this.entities.indexOf(entity);
 
         if (index !== -1) {
             entity.removeSystem(this);
