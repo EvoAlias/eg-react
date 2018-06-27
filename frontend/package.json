@@ -11,6 +11,7 @@
     "test": "react-app-rewired test --env=jsdom --scripts-version react-scripts-ts"
   },
   "dependencies": {
+    "@types/axios": "^0.14.0",
     "d3": "^4.12.0",
     "interval-tree2": "^1.1.0",
     "rxjs": "^6.2.1",

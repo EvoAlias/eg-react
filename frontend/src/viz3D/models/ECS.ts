@@ -1,18 +1,20 @@
 import { Entity } from "./Entity";
 import { System, SystemConstructor } from "./System";
 import * as uuid from 'uuid/v4';
+import { interval } from "rxjs";
 
 // TODO watch changes on entity system dirty
 
 export class ECS {
-    entities: Entity[] = []
-    entitiesSystemsDirty: Entity[] = []
-    systems: System[] = []
+    entities: Entity[] = [];
+    entitiesSystemsDirty: Entity[] = [];
+    systems: System[] = [];
     
+    fixedUpdate$ = interval(34);
     updateCounter = 0;
     lastUpdate = performance.now();
 
-    constructor(systems: System[] = []) {
+    constructor(systems: System[], public services: any[]) {
         this.systems = systems;
         // Tell the system that this is the ecs
         this.systems.forEach(s => s.addToECS(this));
@@ -28,6 +30,9 @@ export class ECS {
                 }
             }
         });
+        // Update interval
+
+
     }
 
     getEntityById(id: number) {
@@ -35,6 +40,10 @@ export class ECS {
     }
 
     addEntity(entity: Entity) {
+        const exist = this.entities.find(e => e.id === entity.id);
+        if (exist) {
+            return;
+        }
         this.entities.push(entity);
         entity.addToECS(this);
     }
@@ -71,6 +80,10 @@ export class ECS {
         if (index !== -1) {
             this.entitiesSystemsDirty.splice(index, 1)
         }
+    }
+
+    getService<T = {}>(service: any) {
+        return this.services.find(s => s.constructor === service) as T;
     }
 
     getSystem<T extends System>(system: SystemConstructor) {

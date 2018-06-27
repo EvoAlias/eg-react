@@ -7,6 +7,9 @@ import { SceneManagerSystem } from '../systems/SceneManagerSystem';
 import * as THREE from 'three';
 import { CameraSystem } from '../systems/CameraSystem';
 import { ChartSystem } from '../systems/ChartSystem';
+import { TwoBitService } from '../services/TwoBitService';
+import { GeneService } from '../services/GeneService';
+import { GeneRenderSystem } from '../systems/GeneRenderingSystem';
 
 export class SceneManager {
     scene: THREE.Scene;
@@ -33,9 +36,16 @@ export class SceneManager {
             new SceneManagerSystem(this),
             new CameraSystem(),
             new GenomeTreeSystem(HG19),
-            new ChromosomeRenderSystem(),
+            new GeneRenderSystem(),
+            // new ChromosomeRenderSystem(),
             new ChartSystem(),
-        ]);
+        ],
+            [
+                new TwoBitService(HG19.twoBitURL),
+                // remember to include the forward slash at the end.
+                new GeneService('/'), // 'http://ec2-54-89-252-92.compute-1.amazonaws.com/'),
+            ]
+        );
 
         this.resizeCanvas();
         this.fixedUpdate();
