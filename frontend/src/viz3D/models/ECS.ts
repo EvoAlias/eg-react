@@ -14,7 +14,20 @@ export class ECS {
 
     constructor(systems: System[] = []) {
         this.systems = systems;
-        this.systems.forEach(s => this.addSystem(s))
+        // Tell the system that this is the ecs
+        this.systems.forEach(s => s.addToECS(this));
+        // Initialize systems one by one
+        this.systems.forEach(s => s.init());
+        // Tell all systems that all other systems are initialized
+        this.systems.forEach(s => s.onECSInit());
+        // Add entities to the systems.
+        this.systems.forEach(s => {
+            for (const entity of this.entities) {
+                if (s.test(entity)) {
+                    s.addEntity(entity);
+                }
+            }
+        });
     }
 
     getEntityById(id: number) {
@@ -60,17 +73,6 @@ export class ECS {
         }
     }
 
-    addSystem(system: System) {
-        this.systems.push(system);
-        system.addToECS(this);
-        for (const entity of this.entities) {
-            if (system.test(entity)) {
-            system.addEntity(entity);
-            }
-        }
-        system.init();
-    }
-
     getSystem<T extends System>(system: SystemConstructor) {
         return this.systems.find(s => s.constructor === system) as T;
     }
@@ -86,7 +88,9 @@ export class ECS {
 
     cleanDirtyEntities() {
         for (const entity of this.entitiesSystemsDirty) {
-            for (const system of this.systems) {
+            // reversed systems to preserve order;
+            const reversedSystems = this.systems.reverse();
+            for (const system of reversedSystems) {
                 const index = entity.systems.indexOf(system);
                 const test = system.test(entity);
 
@@ -101,7 +105,7 @@ export class ECS {
         this.entitiesSystemsDirty = [];
     }
 
-    update() {
+    fixedUpdate() {
         const now = performance.now()
         const elapsed = now - this.lastUpdate;
 
@@ -109,7 +113,7 @@ export class ECS {
             if (this.entitiesSystemsDirty.length) {
                 this.cleanDirtyEntities();
             }
-            system.updateAll(elapsed)
+            system.fixedUpdateAll(elapsed)
         }
 
         this.updateCounter += 1;

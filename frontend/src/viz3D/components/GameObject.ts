@@ -1,5 +1,5 @@
 import { Component } from "../models/Component";
-
+import * as THREE from 'three';
 
 export class GameObject implements Component {
     transform: THREE.Group;

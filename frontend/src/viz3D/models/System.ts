@@ -1,15 +1,17 @@
 import { Entity } from "./Entity";
 import { ECS } from "./ECS";
+import { BehaviorSubject } from "rxjs";
 
 export interface SystemConstructor {
     new (...args: any[]): System
 }
 
 export class System {
-    entities: Entity[] = [];
     ecs: ECS;
-
     name = System.name;
+
+    entitiesSubject: BehaviorSubject<Entity[]> = new BehaviorSubject([]);
+    entities$ = this.entitiesSubject.asObservable();
 
     constructor() {
     }
@@ -20,31 +22,46 @@ export class System {
 
     addEntity(entity: Entity) {
         entity.addSystem(this)
-        this.entities.push(entity);
         this.enter(entity);
+        // Make a copy of the array for change detection.
+        const entities = this.entitiesSubject.getValue().slice();
+        entities.push(entity);
+        this.entitiesSubject.next(entities);
     }
 
     removeEntity(entity: Entity) {
-        const index = this.entities.indexOf(entity);
+        const entities = this.entitiesSubject.getValue().slice();
+        const index = entities.indexOf(entity);
 
         if (index !== -1) {
             entity.removeSystem(this);
-            this.entities.splice(index, 1);
+            entities.splice(index, 1);
             this.exit(entity);
+            this.entitiesSubject.next(entities);
         }
     }
 
-    updateAll(elapsed: number) {
-        this.preUpdate();
-        this.update(this.entities, elapsed)
-        this.postUpdate();
+    fixedUpdateAll(elapsed: number) {
+        this.preFixedUpdate();
+        this.fixedUpdate(this.entitiesSubject.getValue(), elapsed)
+        this.postFixedUpdate();
     }
 
+
+    /**
+     * Called before onECSInit. Used for resource allocation.
+     *
+     * @memberof System
+     */
     init() {}
 
-    preUpdate() {}
+    onECSInit() {
 
-    postUpdate() {}
+    }
+
+    preFixedUpdate() {}
+
+    postFixedUpdate() {}
 
     test(entity: Entity) {
         return false;
@@ -54,7 +71,7 @@ export class System {
 
     exit(entity: Entity) {}
 
-    update(entities: Entity[], elapsed: number) {}
+    fixedUpdate(entities: Entity[], elapsed: number) {}
 
     dispose() {}
 }

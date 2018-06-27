@@ -14,12 +14,13 @@ function nextID() {
 
 export class Entity {
     components: {[name: string]: Component} = {}
-    systems: System[] = [];
     gameObject: GameObject;
+    systems: System[] = [];
     // a change in components, which requires a re compute of eligability
     systemsDirty = false;
     ecs: ECS = null;
     id: number;
+    enabled: boolean;
 
     constructor(components: Array<Component | ComponentConstructor<Component>> = []) {
         this.id = nextID();
