@@ -13,7 +13,7 @@ import { RangeInterval } from '../models/Range';
 import * as d3 from 'd3';
 
 import { BehaviorSubject } from 'rxjs';
-import { switchMap, map, distinctUntilChanged, tap, throttle } from 'rxjs/operators';
+import { switchMap, map, distinctUntilChanged, tap, throttle, debounce } from 'rxjs/operators';
 import { ChartComponent } from '../components/ChartComponent';
 import ChromosomeInterval from '../../model/interval/ChromosomeInterval';
 import { TwoBitService } from '../services/TwoBitService';
@@ -80,6 +80,7 @@ export class GenomeTreeSystem extends System {
     initializeRepositioningRoutine() {
         this.entities$.pipe(
             distinctUntilChanged(),
+            debounce(() => this.ecs.fixedUpdate$),
             switchMap((entities) => this.viewToWorld$.pipe(
                 map((viewToWorld) => ({entities, viewToWorld}))
             ))
