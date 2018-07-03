@@ -31,12 +31,12 @@ export class SceneManager {
             renderer.domElement.getContext('experimental-webgl');
         gl.getExtension('OES_standard_derivatives');
         renderer.setSize(canvas.width, canvas.height);
-
+        // renderer.setClearColor( 0xffffff );
         this.ecs = new ECS([
             new SceneManagerSystem(this),
             new CameraSystem(),
-            new GenomeTreeSystem(HG19),
-            new GeneRenderSystem(),
+            // new GenomeTreeSystem(HG19),
+            // new GeneRenderSystem(),
             // new ChromosomeRenderSystem(),
             new ChartSystem(),
         ],
