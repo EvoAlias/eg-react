@@ -28,7 +28,7 @@ export class GenomeTreeSystem extends System {
     // Interval tree representing elements/features of the gemome.
     intervalTree: IntervalTree;
     // Helps system keep track of whether an enitity exist for this interval. If it created it.
-    intervalToEntity: { [interval: string]: Entity} = {};
+    intervalToEntity: { [intervalID: number]: Entity} = {};
 
     // Current chromosme we are on.
     currentChromosome: string;
@@ -46,130 +46,184 @@ export class GenomeTreeSystem extends System {
     toUpdate$ = this.toUpdateSubject.asObservable();
 
     // Linear size in THREEjs units (meters)
-    worldSizeSubject: BehaviorSubject<RangeInterval> = new BehaviorSubject<RangeInterval>([-5, 10]);
+    private worldSizeSubject: BehaviorSubject<RangeInterval> = new BehaviorSubject<RangeInterval>([-5, 10]);
     worldSize$ = this.worldSizeSubject.asObservable();
+    get worldSize() {
+        return this.worldSizeSubject.getValue();
+    }
 
-    viewRangeSubjcet: BehaviorSubject<RangeInterval> = new BehaviorSubject<RangeInterval>([0, 1000]);
-    viewRange$ = this.viewRangeSubjcet.asObservable();
+    private viewRangeSubject: BehaviorSubject<RangeInterval> = new BehaviorSubject<RangeInterval>([0, 1000]);
+    viewRange$ = this.viewRangeSubject.asObservable();
+    get viewRange() {
+        return this.viewRangeSubject.getValue();
+    }
 
-    viewToWorld$ = this.worldSizeSubject.pipe(
-        switchMap((world) => this.viewRange$.pipe(
-            map((view) => ({world, view}))
-        )),
-        map(({world, view}) => d3.scaleLinear().domain(view).range(world))
-    )
-
-    worldToView$ = this.worldSizeSubject.pipe(
-        switchMap((world) => this.viewRange$.pipe(
-            map((view) => ({world, view}))
-        )),
-        map(({world, view}) => d3.scaleLinear().domain(world).range(view))
-    )
+    viewToWorld = d3.scaleLinear().domain([0, 1000]).range([-5, 10]);
+    worldToView = d3.scaleLinear().range([0, 1000]).domain([-5, 10]);
 
     // Total number of base pairs.
     private bpCount: number; // total number of base pairs
 
     constructor(public config: GenomeConfig) {
         super();
+
+        this.worldSize$.subscribe((worldSize) => {
+            this.viewToWorld.range(worldSize);
+            this.worldToView.domain(worldSize);
+        });
+
+        this.viewRange$.subscribe((viewRange) => {
+            this.viewToWorld.domain(viewRange);
+            this.worldToView.range(viewRange);
+        });
     }
 
     test(entity: Entity) {
+        // This system adds entities and removes entitie with intervalComponents but doesnt do anything with them.
         return entity.hasComponent(IntervalComponent);
     }
 
     initializeRepositioningRoutine() {
-        this.entities$.pipe(
-            distinctUntilChanged(),
-            debounce(() => this.ecs.fixedUpdate$),
-            switchMap((entities) => this.viewToWorld$.pipe(
-                map((viewToWorld) => ({entities, viewToWorld}))
-            ))
-        ).subscribe(({entities, viewToWorld}) => {
-            console.log('repositioning entities');
-            for (const entity of entities) {
-                const ic = entity.getComponent<IntervalComponent>(IntervalComponent);
-                const startX = viewToWorld(ic.interval.start);
-                // console.log('\t', entity, startX);
-                entity.gameObject.transform.position.x = startX;
-            }
-        })
+        // this.entities$.pipe(
+        //     distinctUntilChanged(),
+        //     debounce(() => this.ecs.fixedUpdate$),
+        //     switchMap((entities) => this.viewToWorld$.pipe(
+        //         map((viewToWorld) => ({entities, viewToWorld}))
+        //     ))
+        // ).subscribe(({entities, viewToWorld}) => {
+        //     console.log('repositioning entities');
+        //     for (const entity of entities) {
+        //         const ic = entity.getComponent<IntervalComponent>(IntervalComponent);
+        //         const startX = viewToWorld(ic.interval.start);
+        //         // console.log('\t', entity, startX);
+        //         entity.gameObject.transform.position.x = startX;
+        //     }
+        // })
     }
 
     initializeGeneLoadingRoutine() {
-        this.viewRange$.pipe(
-            distinctUntilChanged(),
-            // convert the view to a chromosome interval
-            tap((range) => console.log('Updated view range', range)),
-            map((range) => this.viewToChromosomeInterval(range)),
-            tap((interval) => console.log('Updated chromosome interval', interval)),
-            // Take the current chromosome interval and fetch the twobit
-            // Use switchmap here as it has cancelation and will cancel previous request
-            switchMap((interval) => {
-                return this.geneService.getGenesInInterval$('hg19', 'refGene', interval)
-            })
-        ).subscribe((results) => {
-            // iterate through results and create entitys covering the intervals.
-            console.log('Results', results)
-            for (const result of results) {
-                console.log('result', result);
-                const entities = [];
-                // create an entity for the entire gene
-                const txRange = 
-                    this.chromosomeIntervalToView(new ChromosomeInterval(result.chrom, result.txStart, result.txEnd));
-                const txEntity = 
-                    this.findOrCreateEntityWithInterval(txRange, [new GeneComponent(result, GenePart.Transcription)]);
-                entities.push(txEntity);
-                // create an entity for the coding region
-                const cdsRange = 
-                    this.chromosomeIntervalToView(new ChromosomeInterval(result.chrom, result.cdsStart, result.cdsEnd));
-                const cdsEntity = 
-                    this.findOrCreateEntityWithInterval(cdsRange, [new GeneComponent(result, GenePart.Coding)]);
-                entities.push(cdsEntity);
-                // create an entity for every exon
-                const exons = result.exonStarts.map((start, i) => [start, result.exonEnds[i]]);
-                const exonEntities: Entity[] = [];
-                for (const exon of exons) {
-                    const exonRange = 
-                        this.chromosomeIntervalToView(new ChromosomeInterval(result.chrom, exon[0], exon[1]));
-                    const exonEntity = 
-                        this.findOrCreateEntityWithInterval(exonRange, [new GeneComponent(result, GenePart.Exon)]);
-                    entities.push(exonEntity);
-                    exonEntities.push(exonEntity);
-                }
-                // create an entity for introns
-                const intronEntities: Entity[] = [];
-                if (result.exonStarts.length > 1) {
-                    for(let i = 0; i < result.exonEnds.length - 1; i++) {
-                        const intron = [result.exonEnds[i], result.exonStarts[i + 1]];
-                        const intronRange = 
-                            this.chromosomeIntervalToView(new ChromosomeInterval(result.chrom, intron[0], intron[1]));
-                        const intronEntity = 
-                            this.findOrCreateEntityWithInterval(intronRange,
-                                [new GeneComponent(result, GenePart.Intron)]);
-                        entities.push(intronEntity);
-                        intronEntities.push(intronEntity);
-                    }
-                }
-                // add entity to ecs
-                entities.forEach((entity) => {
-                    const c = entity.getComponent(GeneComponent);
-                    c.txEntity = txEntity;
-                    c.codingEntity = cdsEntity;
-                    c.exonEntities = exonEntities;
-                    c.intronEntities = intronEntities;
+        // this.viewRange$.pipe(
+        //     distinctUntilChanged(),
+        //     // convert the view to a chromosome interval
+        //     tap((range) => console.log('Updated view range', range)),
+        //     map((range) => this.viewToChromosomeInterval(range)),
+        //     tap((interval) => console.log('Updated chromosome interval', interval)),
+        //     // Take the current chromosome interval and fetch the twobit
+        //     // Use switchmap here as it has cancelation and will cancel previous request
+        //     switchMap((interval) => {
+        //         return this.geneService.getGenesInInterval$('hg19', 'refGene', interval)
+        //     })
+        // ).subscribe((results) => {
+        //     // iterate through results and create entitys covering the intervals.
+        //     console.log('Results', results)
+        //     for (const result of results) {
+        //         console.log('result', result);
+        //         const entities = [];
+        //         // create an entity for the entire gene
+        //         const txRange = 
+        //             this.chromosomeIntervalToView(
+            // new ChromosomeInterval(result.chrom, result.txStart, result.txEnd));
+        //         const txEntity = 
+        //             this.findOrCreateEntityWithInterval(
+            // txRange, [new GeneComponent(result, GenePart.Transcription)]);
+        //         entities.push(txEntity);
+        //         // create an entity for the coding region
+        //         const cdsRange = 
+        //             this.chromosomeIntervalToView(
+            // new ChromosomeInterval(result.chrom, result.cdsStart, result.cdsEnd));
+        //         const cdsEntity = 
+        //             this.findOrCreateEntityWithInterval(cdsRange, [new GeneComponent(result, GenePart.Coding)]);
+        //         entities.push(cdsEntity);
+        //         // create an entity for every exon
+        //         const exons = result.exonStarts.map((start, i) => [start, result.exonEnds[i]]);
+        //         const exonEntities: Entity[] = [];
+        //         for (const exon of exons) {
+        //             const exonRange = 
+        //                 this.chromosomeIntervalToView(new ChromosomeInterval(result.chrom, exon[0], exon[1]));
+        //             const exonEntity = 
+        //                 this.findOrCreateEntityWithInterval(exonRange, [new GeneComponent(result, GenePart.Exon)]);
+        //             entities.push(exonEntity);
+        //             exonEntities.push(exonEntity);
+        //         }
+        //         // create an entity for introns
+        //         const intronEntities: Entity[] = [];
+        //         if (result.exonStarts.length > 1) {
+        //             for(let i = 0; i < result.exonEnds.length - 1; i++) {
+        //                 const intron = [result.exonEnds[i], result.exonStarts[i + 1]];
+        //                 const intronRange = 
+        //                     this.chromosomeIntervalToView(
+            // new ChromosomeInterval(result.chrom, intron[0], intron[1]));
+        //                 const intronEntity = 
+        //                     this.findOrCreateEntityWithInterval(intronRange,
+        //                         [new GeneComponent(result, GenePart.Intron)]);
+        //                 entities.push(intronEntity);
+        //                 intronEntities.push(intronEntity);
+        //             }
+        //         }
+        //         // add entity to ecs
+        //         entities.forEach((entity) => {
+        //             const c = entity.getComponent(GeneComponent);
+        //             c.txEntity = txEntity;
+        //             c.codingEntity = cdsEntity;
+        //             c.exonEntities = exonEntities;
+        //             c.intronEntities = intronEntities;
 
-                    this.ecs.addEntity(entity);
-                });
+        //             this.ecs.addEntity(entity);
+        //         });
                 
-            }
-        })
+        //     }
+        // })
+    }
+    
+
+    /**
+     * This routine checks changes to the view. It will load entities within
+     * the view range, and unload entities that are not in the view range.
+     *
+     * @memberof GenomeTreeSystem
+     */
+    initializeLoadingAndUnloadingRoutine() {
+        // We firt want to check whenver the view range changes
+        this.viewRange$.pipe(
+            // check whatever the current entities in view are
+            switchMap((viewRange) => this.entities$.pipe(
+                // combine the view range and current entities
+                map((entities) => ({viewRange, currentEntites: entities}))
+            )),
+            // Rate limit this to the ECS fixed update
+            debounce(() => this.ecs.fixedUpdate$)
+        )
+        .subscribe(({viewRange, currentEntites}) => {
+            // First get all intervals in current range.
+            const inRange = this.intervalTree.rangeSearch(viewRange[0], viewRange[1]);
+            
+            // pick entities to remove from ecs;
+            const toRemove = currentEntites.filter((e) => {
+                const ic = e.getComponent(IntervalComponent);
+                const foundIntervalInRange = inRange.find(interval => interval.id === ic.interval.id);
+                return !foundIntervalInRange;
+            });
+            console.log(`[GeneTree]: inRange`, inRange);
+            console.log(`[GeneTree]: ${viewRange} Removing`, toRemove);
+            toRemove.forEach(e => this.ecs.removeEntity(e));
+
+            // pick entities to add to ecs;
+            const toAdd = inRange.map((interval) => {
+                return this.intervalToEntity[interval.id];
+            })
+            // remove entites in current entities list
+            .filter(e => currentEntites.indexOf(e) === -1);
+            console.log(`[GeneTree]: ${viewRange} Adding`, toAdd);
+            toAdd.forEach(e => this.ecs.addEntity(e));
+        });
     }
 
     onECSInit() {
         this.twoBitService = this.ecs.getService(TwoBitService);
         this.geneService = this.ecs.getService(GeneService);
-        this.initializeRepositioningRoutine();
-        this.initializeGeneLoadingRoutine();
+        this.initializeLoadingAndUnloadingRoutine();
+        // this.initializeRepositioningRoutine();
+        // this.initializeGeneLoadingRoutine();
     }
 
     init() {
@@ -178,34 +232,35 @@ export class GenomeTreeSystem extends System {
         const bpCount = chromosomes.reduce((acc, c) => acc + c.getLength(), 0);
         // set main interval tree as well as start points
         this.intervalTree = new IntervalTree(bpCount / 2);
-
+        // If all goes well for the human genome currentOffset starts at 0 and ends at 3 billion
         let currentOffset = 0;
+        // chromosomes are assumed to be in sorted order
         chromosomes.forEach((c) => {
+            // The chromosomeOffset is the end of the last chromosome
             this.chromosomeOffsets[c.getName()] = currentOffset
 
+            // Create an interval representing this chromosome
             const interval = [currentOffset, currentOffset + c.getLength()];
             
+            // Update the current offset to now be the end of this one
             currentOffset += c.getLength();
             
+            // Mark the chromosome end
             this.chromosomeEnds[c.getName()] = currentOffset;
 
+            // Create an entity that represents this chromosme
             const entity = this.chromosomeEntities[c.getName()] = 
                 this.createEntityWithInterval(interval as any, [new ChromosomeComponent(c)]);
             
+            // Cache the specific interval for this chromosome
             const ic = entity.getComponent(IntervalComponent);
             this.chromosomeIntervals[c.getName()] = ic.interval;
-            
-            this.ecs.addEntity(entity);
         });
         this.updateViewRange([0, 100000]);
     }
 
-    // fixedUpdate(entities: Entity[]) {
-    //     this.toUpdateSubject.next(entities);
-    // }
-
     updateViewRange(viewRange: RangeInterval) {
-        this.viewRangeSubjcet.next(viewRange);
+        this.viewRangeSubject.next(viewRange);
     }
 
     // helpers
@@ -219,8 +274,10 @@ export class GenomeTreeSystem extends System {
             this.intervalTree.add(interval[0], interval[1]);
         
             
-        const entity = new Entity([new IntervalComponent(i), ...components]); 
-        this.intervalToEntity[interval as any] = entity;
+        const entity = new Entity([new IntervalComponent(i,
+            this.viewToChromosomeInterval([i.start, i.end])), ...components]); 
+        const ic = entity.getComponent(IntervalComponent);
+        this.intervalToEntity[ic.interval.id] = entity;
         return entity;
     }
 

@@ -26,8 +26,9 @@
 ## ChartSystem
 - Build out simple line chart component
     - [Optional] use shaders to generate a grid and spline. Map domain to the uv coordinates
-    - [Optional] use canvas to generate chart. Convert canvas to a textue for use with the plane
-- Get charts to map to the uvs of a plane
+    - [Optional] use canvas to generate chart. Convert canvas to a textue for use with the plane: DONE
+- Get charts to map to the uvs of a plane: Done
+- Create Tooltip and Cursors
 - Orient plane to the transform based off the genome tree
 
 ## PickingSystem

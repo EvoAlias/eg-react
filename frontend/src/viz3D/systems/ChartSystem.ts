@@ -9,7 +9,7 @@ import { ChartComponent } from "../components/ChartComponent";
 import { SceneManager } from "../models/SceneManager";
 import { SceneManagerSystem } from "./SceneManagerSystem";
 import { createCartesianShader } from "../shaders/grid/grid";
-import { AnyLoader } from "three";
+import { AnyLoader, Scene } from "three";
 import { Chart } from "../lib/chart/Chart";
 
 class ExamplePoint {
@@ -28,8 +28,41 @@ class ExamplePoint {
 
 export class ChartSystem extends System {
     sm: SceneManagerSystem;
+    chartGroup = new THREE.Group();
+    objectToChart: {[uuid: string]: Chart} = {};
+
+    setupMouseEvents() {
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const canvas = this.sm.sm.renderer.domElement;
+        const renderer = this.sm.sm.renderer;
+        const onMouseMove = (event: MouseEvent) => {
+            // mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
+            // mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
+            mouse.x = (event.offsetX / canvas.width) * 2 - 1;
+            mouse.y = - (event.offsetY / canvas.height) * 2 + 1;
+            console.log('mouse', mouse, event);
+            // console.log('params', mouse, canvas, event);
+            raycaster.setFromCamera(mouse, this.sm.sm.camera);
+
+            const intersects = raycaster.intersectObject(this.chartGroup, true);
+
+            for (const intersect of intersects) {
+                const chart = this.objectToChart[intersect.object.uuid];
+                if (chart) {
+                    const uv = (intersect as any).uv;
+                    chart.onMouseMoveUV(uv.x, uv.y);
+                }
+            }
+        }
+        canvas.addEventListener('mousemove', onMouseMove);
+    }
 
     onECSInit() {
+        this.sm = this.ecs.getSystem(SceneManagerSystem);
+        this.sm.sm.scene.add(this.chartGroup);
+        this.setupMouseEvents();
+
         // Shader Test
 
         // const sm = this.ecs.getSystem<SceneManagerSystem>(SceneManagerSystem);
@@ -58,16 +91,20 @@ export class ChartSystem extends System {
         });
         chart.data(data);
         document.body.appendChild(chart.mainCanvas);
-        
-        const sm = this.ecs.getSystem<SceneManagerSystem>(SceneManagerSystem);
-        this.sm = sm;
+        document.body.appendChild(chart.hiddenCanvas);
         
         const texture = new THREE.CanvasTexture(chart.mainCanvas);
         texture.anisotropy = 16;
         const material = new THREE.MeshBasicMaterial({ map: texture });
         const geometry = new THREE.PlaneGeometry(5, 2.5);
         const mesh = new THREE.Mesh(geometry, material);
-        this.sm.sm.scene.add(mesh);
+
+        chart.onRepaint = () => {
+            texture.needsUpdate = true;
+        }
+
+        this.objectToChart[mesh.uuid] = chart;
+        this.chartGroup.add(mesh);
     }
 
     test(e: Entity) {

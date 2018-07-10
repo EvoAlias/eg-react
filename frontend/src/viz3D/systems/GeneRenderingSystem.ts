@@ -12,29 +12,9 @@ export class GeneRenderSystem extends System {
     boxes: {[id: number]: THREE.Object3D} = {}
     gTS: GenomeTreeSystem;
 
-    initializeResizeRoutine() {
-        this.entities$.pipe(
-            // do nothing until entities change
-            distinctUntilChanged(),
-            // listen to displayed region changes
-            switchMap((entities) => this.gTS.viewToWorld$.pipe(
-                // rearange parameters
-                map((viewToWorld) => ({entities, viewToWorld}))
-            ))
-        ).subscribe(({entities, viewToWorld}) => {
-            for (const entity of entities) {
-                const ic = entity.getComponent(IntervalComponent);
-                const box = this.boxes[entity.id];
-                const startX = viewToWorld(ic.interval.start);
-                const endX = viewToWorld(ic.interval.end);
-                box.scale.setX(endX - startX);
-            }
-        })
-    }
-
+   
     onECSInit() {
         this.gTS = this.ecs.getSystem(GenomeTreeSystem);
-        this.initializeResizeRoutine(); 
     }
 
     test(entity: Entity) {

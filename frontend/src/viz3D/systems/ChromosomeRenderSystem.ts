@@ -7,51 +7,103 @@ import * as THREE from 'three';
 import * as d3 from 'd3';
 import { IntervalComponent } from "../components/IntervalComponent";
 import { BehaviorSubject } from "rxjs";
-import { switchMap, map, distinctUntilChanged } from "rxjs/operators";
+import { switchMap, map, distinctUntilChanged, debounce, last } from "rxjs/operators";
+import { GeneConformationService } from "../services/GenomeConformationService";
+import ChromosomeInterval from "../../model/interval/ChromosomeInterval";
+import { SceneManagerSystem } from "./SceneManagerSystem";
+import { Vector3 } from "three";
 
 const ChromosomeGeometry = new THREE.BoxGeometry(1, 1, 1);
 const ChromosomeColors = d3.scaleSequential(d3.interpolateViridis).domain([0, 10]);
+const ChromosomeLineMaterial = new THREE.LineBasicMaterial({
+    color: 0x0000ff
+})
+const ConeGeometry = new THREE.ConeBufferGeometry( .1, .1, 32 );
+const ConeMaterial = new THREE.MeshBasicMaterial( {color: 0xffff00} );
 
 export class ChromosomeRenderSystem extends System {
     // Dependent systems
     gTS: GenomeTreeSystem;
-    
+    sM: SceneManagerSystem;
+    gCS: GeneConformationService;
     name = ChromosomeRenderSystem.name
-    boxes: {[index: number]: THREE.Mesh} = {};
-    assignedIndex: {[id: number]: number} = {};
-
-    toUpdateSubject: BehaviorSubject<Entity[]> = new BehaviorSubject<Entity[]>([]);
-    toUpdate$ = this.toUpdateSubject.asObservable();
 
     constructor() {
         super()
     }
 
+    initializeSegmentCreationRoutine() {
+        // get entities. Since they have interval components they are in the view
+        this.entities$
+            .pipe(
+                // ratelimit to fixed update
+                debounce(() => this.ecs.fixedUpdate$)
+            )
+            .subscribe((entities) => {
+                for (const entity of entities) {
+                    const cc = entity.getComponent(ChromosomeComponent);
+                    if (cc.line) {
+                        this.sM.sm.scene.remove(cc.line);
+                    }
+                    cc.geometry = new THREE.Geometry();
+                    cc.line = new THREE.Line(cc.geometry, ChromosomeLineMaterial);
+
+
+                    const viewRange = this.gTS.viewRange;
+                    const entireChromosome = 
+                        new ChromosomeInterval(cc.chromosome.getName(), 0, cc.chromosome.getLength());
+                    const chromosomeViewRange = this.gTS.chromosomeIntervalToView(entireChromosome);
+                    // determine overlap
+                    const overlap = [
+                        Math.max(viewRange[0], chromosomeViewRange[0]),
+                        Math.min(viewRange[1], chromosomeViewRange[1])
+                    ];
+
+                    const chromosomeSegment = this.gTS.viewToChromosomeInterval(overlap);
+                    const chromosomeSegmentViewRange = this.gTS.chromosomeIntervalToView(chromosomeSegment);
+
+                    const width = chromosomeSegmentViewRange[1] - chromosomeSegmentViewRange[0];
+                    const incr = width / 1000;
+                    const startPos = this.gCS.getPositionAt(chromosomeSegmentViewRange[0]);
+                    let lastPos = startPos;
+                    for (let i = chromosomeSegmentViewRange[0]; i < chromosomeSegmentViewRange[1]; i += incr) {
+                        const pos = this.gCS.getPositionAt(i);
+                        pos.x = this.gTS.viewToWorld(i);
+                        cc.geometry.vertices.push(pos);
+
+                        // create an arrow in the direction of the
+                        const cameraDir = new Vector3(0, 0, 1);
+                        // camera looks down the negative z axis
+                        // this.sM.sm.camera.getWorldDirection(cameraDir);
+                        // cameraDir.multiplyScalar(-1);
+                        const cone = new THREE.Mesh(ConeGeometry, ConeMaterial);
+                        cone.position.copy(lastPos);
+                        cone.lookAt(pos);
+                        cone.rotateX(Math.PI / 2);
+                        
+
+                        this.sM.sm.scene.add(cone);
+                        lastPos = pos
+                    }
+                    cc.geometry.verticesNeedUpdate = true;
+                    const geometry = cc.geometry;
+                    geometry.verticesNeedUpdate = true;
+                    geometry.elementsNeedUpdate = true;
+                    geometry.uvsNeedUpdate = true;
+                    geometry.normalsNeedUpdate = true;
+                    geometry.colorsNeedUpdate = true;
+                    
+                    this.sM.sm.scene.add(cc.line);
+                    console.log('modifying entity', entity, cc.geometry)
+                }
+            })
+    }
+
     onECSInit() {
         this.gTS = this.ecs.getSystem(GenomeTreeSystem);
-        this.initializeResizeRoutine();
-    }
-
-    initializeResizeRoutine() {
-        this.toUpdateSubject.pipe(
-            distinctUntilChanged(),
-            switchMap((entities) => this.gTS.viewToWorld$.pipe(
-                map((viewToWorld) => ({entities, viewToWorld}))
-            ))
-        ).subscribe(({entities, viewToWorld}) => {
-            for (const entity of entities) {
-                // resize box geometry based off interval
-                const ic = entity.getComponent<IntervalComponent>(IntervalComponent);
-                const box = this.boxes[this.assignedIndex[entity.id]];
-                const startX = viewToWorld(ic.interval.start);
-                const endX = viewToWorld(ic.interval.end);
-                box.scale.setX(endX - startX);
-            }
-        }) 
-    }
-
-    fixedUpdate(entities: Entity[], elapsed: number) {
-        this.toUpdateSubject.next(entities);
+        this.sM = this.ecs.getSystem(SceneManagerSystem);
+        this.gCS = this.ecs.getService(GeneConformationService);
+        this.initializeSegmentCreationRoutine();
     }
 
     test(entity: Entity) {
@@ -59,29 +111,31 @@ export class ChromosomeRenderSystem extends System {
     }
 
     enter(entity: Entity) {
-        const cc = entity.getComponent<ChromosomeComponent>(ChromosomeComponent)
-        const index = this.gTS.config.genome.getAllChromosomes().indexOf(cc.chromosome);
-        const mesh = this.boxes[index] = this.boxes[index] || this.makeMesh(index); 
-        this.assignedIndex[entity.id] = index;
-
-        // mesh.position.x = index * 2;
-        
-        // const geometry = new THREE.BoxGeometry(1, 1, 1);
-        // const material = ChromosmeMat;
-        // const mesh = this.boxes[entity.id] = new THREE.Mesh(geometry, material);
+        const cc = entity.getComponent<ChromosomeComponent>(ChromosomeComponent);
 
         
-        entity.gameObject.transform.add(mesh);
+        // entity.gameObject.transform.add(cc.line);
+        this.sM.sm.scene.add(this.makeMesh(1))
     }
 
     exit(entity: Entity) {
-        entity.gameObject.transform.remove(this.boxes[this.assignedIndex[entity.id]]);
+
     }
 
-    
+
     makeMesh(index: any) {
-        const material = new THREE.MeshBasicMaterial({color: ChromosomeColors(index)});
-        const mesh = new THREE.Mesh(ChromosomeGeometry, material);
-        return mesh;
+        const material = new THREE.LineBasicMaterial({
+            color: 0x0000ff
+        });
+        
+        const geometry = new THREE.Geometry();
+        geometry.vertices.push(
+            new THREE.Vector3( -10, 0, 0 ),
+            new THREE.Vector3( 0, 10, 0 ),
+            new THREE.Vector3( 10, 0, 0 )
+        );
+        
+        const line = new THREE.Line( geometry, material );
+        return line
     }
 }

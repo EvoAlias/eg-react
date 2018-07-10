@@ -32,7 +32,9 @@ export class ECS {
         });
         // Update interval
 
-
+        this.fixedUpdate$.subscribe(() => {
+            this.fixedUpdate();
+        });
     }
 
     getEntityById(id: number) {
@@ -121,14 +123,11 @@ export class ECS {
     fixedUpdate() {
         const now = performance.now()
         const elapsed = now - this.lastUpdate;
-
         for (const system of this.systems) {
             if (this.entitiesSystemsDirty.length) {
                 this.cleanDirtyEntities();
             }
-            system.fixedUpdateAll(elapsed)
         }
-
         this.updateCounter += 1;
         this.lastUpdate = now;
     }

@@ -41,13 +41,6 @@ export class System {
         }
     }
 
-    fixedUpdateAll(elapsed: number) {
-        this.preFixedUpdate();
-        this.fixedUpdate(this.entitiesSubject.getValue(), elapsed)
-        this.postFixedUpdate();
-    }
-
-
     /**
      * Called before onECSInit. Used for resource allocation.
      *
@@ -59,10 +52,6 @@ export class System {
 
     }
 
-    preFixedUpdate() {}
-
-    postFixedUpdate() {}
-
     test(entity: Entity) {
         return false;
     }
@@ -70,8 +59,6 @@ export class System {
     enter(entity: Entity) {}
 
     exit(entity: Entity) {}
-
-    fixedUpdate(entities: Entity[], elapsed: number) {}
 
     dispose() {}
 }

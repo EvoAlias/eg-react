@@ -29,7 +29,8 @@ export interface ChartDatum {
 }
 
 export interface DatumProps {
-    hiddenCol: string;
+    fillStyle: string;
+    fillStyleHidden: string;
 }
 
 export class Chart {
@@ -53,8 +54,13 @@ export class Chart {
     x: d3.ScaleLinear<number, number>;
     y: d3.ScaleLinear<number, number>;
 
+    uvX: d3.ScaleLinear<number, number>;
+    uvY: d3.ScaleLinear<number, number>;
+
     xAxisOptions: AxisOptions;
     yAxisOptions: AxisOptions;
+
+    onRepaint: () => void;
 
     constructor({
         width = 512,
@@ -84,6 +90,11 @@ export class Chart {
             .range([this.margin.left, this.width])
         this.y = d3.scaleLinear()
             .range([this.height, 0])
+
+        this.uvX = d3.scaleLinear()
+            .domain([0, 1]).range([0, width]);
+        this.uvY = d3.scaleLinear()
+            .domain([0, 1]).range([height, 0]);
 
         this.xAxisOptions = Object.assign({
             title: '',
@@ -126,20 +137,11 @@ export class Chart {
             .attr('x', d => this.x(d.x()))
             .attr('y', d => this.y(d.y()))
 
-        // merge enter and exist
+        // merge enter and update
         join
             .merge(enterSel)
-            .attr('hiddenCol', (d) => {
-                let props = this.propsFor[d.id()];
-                if (!props) {
-                    props = this.propsFor[d.id()] = {};
-                }
-                if (!props.hiddenCol) {
-                    props.hiddenCol = this.genColor();
-                    this.colorToDatum[props.hiddenCol] = d;
-                }
-                return props.hiddenCol
-            })
+            .attr('fillStyle', this.getPropsWithDefault('fillStyle', () => 'red'))
+            .attr('fillStyleHidden', this.getPropsWithDefault('fillStyleHidden', () => this.genColor()))
         
         const exitSel = join.exit();
 
@@ -160,7 +162,6 @@ export class Chart {
         
         // draw markers
         const elements = this.chart.selectAll('datum');
-        context.fillStyle = 'red';
         elements.each(drawMarker(context));
         // draw lines
         const line = d3.line<ChartDatum>()
@@ -175,19 +176,59 @@ export class Chart {
         line(this.datums);
         context.stroke();
 
+        if (this.onRepaint) {
+            this.onRepaint();
+        }
     }
 
     drawHidden() {
         const context = this.getContext(true)
         // draw markers
         const elements = this.chart.selectAll('datum');
-        context.fillStyle = 'red';
-        elements.each(drawMarker(context));
+        elements.each(drawMarker(context, true));
+    }
+
+    drawCursor(x: number, y: number) {
+        if (x < this.margin.left || x > this.width) {
+            return;
+        }
+        if (y < this.margin.top || y > this.height) {
+            return;
+        }
+        const ctx = this.getContext();
+        ctx.save();
+        ctx.strokeStyle = "black";
+        ctx.beginPath();
+        ctx.moveTo(this.margin.left, y);
+        ctx.lineTo(this.width, y);
+        ctx.moveTo(x, this.height);
+        ctx.lineTo(x, 0);
+        ctx.stroke();
+
+        this.drawToolTip(x, y);
+
+        ctx.restore();
+    }
+
+    drawToolTip(x: number, y: number) {
+        const bisector = d3.bisector((d: ChartDatum) => d.x()).right;
+        const index = bisector(this.datums, this.x.invert(x));
+        console.log('datum index', index);
+        const left = this.datums[index];
+        const right = this.datums[index];
+
+        const value = left ? left : right;
+
+        const ctx = this.getContext();
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(x, y, 100, 50);
+        ctx.fillText(`value: ${value.y()}`, x + 20, y + 20);
     }
 
     drawXAxis(hidden?: boolean) {
         const ctx = this.getContext(hidden);
         ctx.save();
+        ctx.strokeStyle = 'black';
 
         const tickCount = this.xAxisOptions.tickCount;
         const tickSize = this.xAxisOptions.tickSize;
@@ -199,9 +240,10 @@ export class Chart {
             ctx.moveTo(this.x(d), this.height);
             ctx.lineTo(this.x(d), this.height + tickSize);
         });
-        ctx.strokeStyle = 'black';
         ctx.stroke();
         
+        ctx.fillStyle = 'black';
+
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ticks.forEach((d) => {
@@ -213,6 +255,7 @@ export class Chart {
     drawYAxis(hidden?: boolean) {
         const ctx = this.getContext(hidden);
         ctx.save();
+        ctx.strokeStyle = 'black';
 
         const tickCount = this.yAxisOptions.tickCount;
         const tickSize = this.yAxisOptions.tickSize;
@@ -228,7 +271,6 @@ export class Chart {
             ctx.moveTo(xRange[0], this.y(d));
             ctx.lineTo(xRange[0]-tickSize, this.y(d));
         })
-        ctx.strokeStyle = 'black';
         ctx.stroke();
  
         // draw axis
@@ -239,6 +281,8 @@ export class Chart {
         ctx.lineTo(xRange[0] -tickSize, this.height);
         ctx.strokeStyle = 'black';
         ctx.stroke();
+
+        ctx.fillStyle = 'black';
 
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
@@ -270,13 +314,46 @@ export class Chart {
         return canvas.getContext('2d');
     }
 
+    getDatumAtUV(uvX: number, uvY: number) {
+        const x = this.uvX(uvX);
+        const y = this.uvY(uvY);
+        return this.getDatumAt(x, y);
+    }
+
+    getPropsWithDefault(propName: string, getDefault: (d: ChartDatum) => any) {
+        return (d: ChartDatum) => {
+            let props = this.propsFor[d.id()];
+            if (!props) {
+                props = this.propsFor[d.id()] = {};
+            }
+            if (!props[propName]) {
+                props[propName] = getDefault(d);
+                if (propName === 'fillStyleHidden') {
+                    this.colorToDatum[props.fillStyleHidden] = d;
+                }
+            }
+            return props[propName];
+        }
+    }
+
     getDatumAt(mouseX: number, mouseY: number) {
         const context = this.getContext(true);
         const col = context.getImageData(mouseX, mouseY, 1, 1).data;
         const colKey = `rgb(${col[0]},${col[1]},${col[2]})`;
         const datum = this.colorToDatum[colKey];
-        console.log(datum);
         return datum;
+    }
+
+    onMouseMoveUV(u: number, v: number) {
+        const x = this.uvX(u);
+        const y = this.uvY(v);
+        this.onMouseMove(x, y);
+    }
+
+    onMouseMove(x: number, y: number) {
+        console.log('drawing', x, y);
+        this.drawReal();
+        this.drawCursor(x, y);
     }
 
     private genColor() {
@@ -295,18 +372,23 @@ export class Chart {
     }
 }
 
-function drawMarker(context: CanvasRenderingContext2D) {
+function drawMarker(context: CanvasRenderingContext2D, hidden?: boolean) {
     return function(this: any) {
         const width = 10;
         const height = 10;
         const hw = width / 2;
         const hh = height / 2;
         const node = d3.select(this);
+        const x = +node.attr('x') - hw;
+        const y = +node.attr('y') - hh;
+        // console.log('fillStyleHidden', node.attr('fillStyleHidden'))
+        context.fillStyle = hidden ? node.attr('fillStyleHidden') : node.attr('fillStyle');
         context.fillRect(
-            +node.attr('x') - hw,
-            +node.attr('y') - hh,
+            x,
+            y,
             width,
             height
         )
+        // context.fillText(`${Math.floor(x)}, ${Math.floor(y)}`, x, y - 20);
     }
 }

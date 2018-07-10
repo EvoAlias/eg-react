@@ -10,6 +10,7 @@ import { ChartSystem } from '../systems/ChartSystem';
 import { TwoBitService } from '../services/TwoBitService';
 import { GeneService } from '../services/GeneService';
 import { GeneRenderSystem } from '../systems/GeneRenderingSystem';
+import { GeneConformationService } from '../services/GenomeConformationService';
 
 export class SceneManager {
     scene: THREE.Scene;
@@ -44,19 +45,12 @@ export class SceneManager {
                 new TwoBitService(HG19.twoBitURL),
                 // remember to include the forward slash at the end.
                 new GeneService('/'), // 'http://ec2-54-89-252-92.compute-1.amazonaws.com/'),
+                new GeneConformationService(),
             ]
         );
 
         this.resizeCanvas();
-        this.fixedUpdate();
         this.render();
-    }
-
-    fixedUpdate() {
-        setInterval(() => {
-            this.ecs.fixedUpdate();
-        }, 1000 / 30)
-        this.ecs.fixedUpdate();
     }
 
     render() {
