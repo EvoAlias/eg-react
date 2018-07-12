@@ -5,6 +5,7 @@ import * as OBCPlugin from 'three-orbit-controls';
 import { Entity } from '../models/Entity';
 import * as TWEEN from '@tweenjs/tween.js';
 import { Component } from '../models/Component';
+import { lerp } from '../lib/lerp';
 
 const OrbitControls = OBCPlugin(THREE);
 
@@ -61,18 +62,21 @@ export class CameraSystem extends System {
             const currentSelected = this.getEntities(event);
             if (this.lastSelected && currentSelected.indexOf(this.lastSelected) === -1) {
                 this.lastSelected.removeComponent(SelectedComponent);
-                console.log('removing selected', this.lastSelected);
                 this.lastSelected = null;
             }
             if (currentSelected.length > 0) {
-                if (this.lastSelected) {
-                    this.lastSelected.removeComponent(SelectedComponent);
-                }
-                this.lastSelected = currentSelected[0];
-                this.lastSelected.addComponent(new SelectedComponent());
+                this.setTarget(currentSelected[0]);
             }
         }
         canvas.addEventListener('click', onMouse);
+    }
+
+    setTarget(e: Entity) {
+        if (this.lastSelected) {
+            this.lastSelected.removeComponent(SelectedComponent);
+        }
+        this.lastSelected = e;
+        this.lastSelected.addComponent(new SelectedComponent());
     }
 
     onECSInit() {
@@ -110,9 +114,55 @@ export class CameraFollowSystem extends System {
         return e.hasComponent(SelectedComponent)
     }
 
+
+    setupFollow() {
+        // deprecated
+        // let time = performance.now();
+        // this.ecs.fixedUpdate$.subscribe(() => {
+        //     const newTime = performance.now();
+        //     const deltaTime = newTime - time;
+        //     time = newTime;
+
+        //     if (!this.target) {
+        //         return;
+        //     }
+
+        //     const camera = this.sm.sm.camera;
+
+        //     const wantedRotationAngle = this.target.rotation.y;
+        //     const wantedHeight = this.target.position.y + this.height;
+
+        //     let currentRotationAngle = camera.rotation.y;
+        //     let currentHeight = camera.position.y
+
+        //     currentRotationAngle =
+        //         lerp(currentRotationAngle, wantedRotationAngle, this.rotationDamping * deltaTime / 1000)
+        //     currentHeight = lerp(currentHeight, wantedHeight, this.heightDamping * deltaTime / 1000);
+
+        //     const currentRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, currentRotationAngle, 0));
+
+        //     // Set poistion to some distance behind
+        //     camera.position.copy(this.target.position);
+        //     const targetForward = new THREE.Vector3().applyQuaternion(currentRotation).multiplyScalar(this.distance);
+        //     camera.position.copy(camera.position.sub(targetForward));
+
+        //     camera.position.setY(currentHeight);
+        //     camera.lookAt(this.target.position);
+
+        //     this.cs.controls.target = this.target.position;
+        //     this.cs.controls.update();
+        // })
+    }
+
+    setTarget(e: Entity) {
+        this.target = e.gameObject.transform;
+    }
+
     onECSInit() {
         this.cs = this.ecs.getSystem(CameraSystem);
         this.sm = this.ecs.getSystem(SceneManagerSystem);
+
+        // this.setupFollow();
     }
 
     enter(e: Entity) {
@@ -142,14 +192,8 @@ export class CameraFollowSystem extends System {
                 // camera.lookAt(this.target.position);
             })
             .onComplete(() => {
-                // camera.position.copy(wantedPosition);
-                // camera.lookAt(this.target.position);
-                // camera.up.copy((new THREE.Vector3(0, 1, 0)).applyQuaternion(this.target.quaternion));
-                
-                
-                // const wantedQuaternion = copyCamera.quaternion.clone()
             })
-            
+
         const upTween = new TWEEN.Tween(camera.up)
             .to(wantedUp, 200)
             .onUpdate(() => {
@@ -160,46 +204,11 @@ export class CameraFollowSystem extends System {
                 this.cs.controls.target = this.target.position;
                 this.cs.controls.update();
             });
-        
+
         tween.chain(upTween);
 
         tween.start();
 
 
-        // const euler = target.rotation;
-
-        // const wantedRotationAngle = euler.y;
-        // const wantedHeight = target.position.y + height;
-
-        // const currentRotationAngle = camera.rotation.y;
-        // const currentHeight = camera.position.y;
-
-        // const currentRotation = target.quaternion;
-        // // new THREE.Quaternion().setFromEuler(new THREE.Euler(0, wantedRotationAngle, 0));
-
-        // const zAxis = new THREE.Vector3(0, 0, 1);
-        // console.log('axis',
-        //     zAxis, 
-        // zAxis.clone().applyQuaternion(camera.quaternion), zAxis.clone().applyQuaternion(target.quaternion))
-
-        // // Move camera to where the object is minus distance on the x axis
-        // camera.position.copy(target.position);
-        // camera.position.sub((new THREE.Vector3(distance, 0, 0)).applyQuaternion(currentRotation));
-
-        // // we should now be looking down the x axis.
-        // camera.lookAt(target.position);
-
-        // // we want the camera up axis to be the y axis.
-        // camera.up.copy((new THREE.Vector3(0, 1, 0)).applyQuaternion(currentRotation));
-
-
-        // // camera.setRotationFromQuaternion(currentRotation);
-        // console.log(camera, target);
-        // // camera.position.copy(new THREE.Vector3(camera.position.x, wantedHeight, camera.position.z));
-        // this.cs.controls.target = target.position;
-        // this.cs.controls.update();
-
-
-        // this.cs.controls.target.copy(e.gameObject.transform);
     }
 }

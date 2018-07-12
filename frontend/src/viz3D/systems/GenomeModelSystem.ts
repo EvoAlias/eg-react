@@ -1,6 +1,7 @@
 import { System } from "../models/System";
 import { SceneManagerSystem } from "./SceneManagerSystem";
 
+import * as TWEEN from '@tweenjs/tween.js';
 import * as THREE from 'three';
 import * as d3 from 'd3';
 import { Component } from "../models/Component";
@@ -11,9 +12,9 @@ import { RangeInterval } from "../models/Range";
 import ChromosomeInterval from "../../model/interval/ChromosomeInterval";
 import { Entity } from "../models/Entity";
 import { IntervalComponent } from "../components/IntervalComponent";
-import { SelectedComponent } from "./CameraSystem";
+import { SelectedComponent, CameraFollowSystem, CameraSystem } from "./CameraSystem";
 import { ChromosomeModelDetails, GenomeModelService } from "../services/GenomeModelService";
-import { from } from "rxjs";
+import { from, BehaviorSubject } from "rxjs";
 import { async } from "rxjs/internal/scheduler/async";
 const STLLoader = require('three-stl-loader')(THREE);
 
@@ -21,6 +22,9 @@ export class GenomeSegment implements Component {
     readonly name = GenomeSegment.name;
     line: THREE.Line;
     length: number;
+
+    worldStart: THREE.Vector3;
+    worldEnd: THREE.Vector3;
 
     debugX: THREE.Line;
     debugY: THREE.Line;
@@ -42,17 +46,34 @@ function deselectedMaterial() {
     });
 }
 
+export type GenomeModelLayout = 'Linear' | 'String' | 'Circular';
+
 export class GenomeModelSystem extends System {
     sM: SceneManagerSystem;
     gTS: GenomeTreeSystem;
     gMS: GenomeModelService;
+    cS: CameraSystem;
 
     lineMaterial: THREE.LineBasicMaterial;
     lineGeometry: THREE.Geometry;
     lineMesh: THREE.Line;
 
+    remeshTween: TWEEN.Tween;
+
     currentInterval: ChromosomeInterval;
     loadedChromosomes: { [chr: string]: boolean } = {};
+
+    modelLayoutSource = new BehaviorSubject<GenomeModelLayout>('Linear');
+    modelLayout$ = this.modelLayoutSource.asObservable();
+    get modelLayout() {
+        return this.modelLayoutSource.getValue()
+    }
+
+    animatingSource = new BehaviorSubject<boolean>(false);
+    animating$ = this.animatingSource.asObservable();
+    get animating() {
+        return this.animatingSource.getValue()
+    }
 
     test(e: Entity) {
         return e.hasComponent(IntervalComponent) && e.hasComponent(GenomeSegment);
@@ -86,54 +107,38 @@ export class GenomeModelSystem extends System {
     }
 
     subscribeOnEntityChange() {
-        // Listen to entities change
 
+        // Whenever the view range changes reload the view
         this.gTS.viewRange$.pipe(
+            // rate limit to fixed update
             debounce(() => this.ecs.fixedUpdate$),
-            tap((viewRange) => console.log('view changed', viewRange)),
-            // load entities in view
+            // block until we load entities in view using the GenomeModelService
             switchMap((viewRange) => {
                 return from(this.reloadView(viewRange))
             }),
-            tap(() => console.log('reload view ended')),
-
+            // It may have been some time since reloadView was called.
+            // Refresh observable chain to pay attention to the current entities list
             switchMap(() => {
                 return this.entities$
             }),
+            // Rate limit to the fixed update
             debounce(() => this.ecs.fixedUpdate$),
-            tap(() => console.log('entities changed')),
         )
             .subscribe((entities) => {
-                // console.log('entites', entities)
                 this.data(entities);
             })
-    }
 
-    repositionEntity(e: Entity) {
-        const gs = e.getComponent(GenomeSegment);
-        const worldPositions = gs.positions.map(pos => this.getWorldPosition(pos));
-        // Set the entities +z axis to the world position.
-
-        const start = worldPositions[0];
-        const end = worldPositions[1];
-        const dir = worldPositions[1].clone().sub(worldPositions[0]);
-        // set the transform to be the midpoint
-        e.gameObject.transform.position.copy(start.clone().lerp(end, 0.5));
-        e.gameObject.transform.lookAt(worldPositions[1]);
-
-        // line should be centered at (0, 0, 0) pointing to (0, 0, length(vec));
-        const startPoint = new THREE.Vector3(0, 0, - dir.length() / 2)
-        const endPoint = new THREE.Vector3(0, 0, dir.length() / 2);
-
-        gs.length = dir.length();
-
-        (gs.line.geometry as THREE.Geometry).vertices[0] = startPoint;
-        (gs.line.geometry as THREE.Geometry).vertices[1] = endPoint;
-        (gs.line.geometry as THREE.Geometry).verticesNeedUpdate = true;
+        // Wehenver we change layout systems update the entities.
+        this.modelLayout$.pipe(
+            // always rate limit to fixed update
+            debounce(() => this.ecs.fixedUpdate$)
+        ).subscribe(() => {
+            // This forces an update cycle to go.
+            this.entitiesSubject.next(this.entitiesSubject.getValue());
+        })
     }
 
     data(data: Entity[]) {
-        // console.log('entities', data);
         // Use d3 to manage the rendering and update cycle
 
         // join is to update existing elements
@@ -148,32 +153,64 @@ export class GenomeModelSystem extends System {
         // enterSel is for adding new elements
         const enterSel = join.enter()
             .append('genome-segment-component')
-        // .call((selection) => {
-        //     selection.each((e: Entity) => this.repositionEntity(e))
-        // })
-
+       
         // merge enter and update
         join
             .merge(enterSel)
             .call((selection) => {
+                const startingPos: THREE.Vector3[] = [];
+                const endingPos: THREE.Vector3[] = [];
+
+                selection.each((e: Entity) => startingPos.push(e.gameObject.transform.position.clone()));
                 selection.each((e: Entity) => this.repositionEntity(e));
-                // Remove all verticies in the geometry
-                this.lineGeometry.vertices.splice(0, this.lineGeometry.vertices.length);
-                selection.each((e) => this.lineGeometry.vertices.push(e.gameObject.transform.position.clone()));
-                console.log('line geo', this.lineGeometry.vertices.length);
+                selection.each((e: Entity) => endingPos.push(e.gameObject.transform.position.clone()));
+
+                // Set the target for the camera system
+                if (data.length > 0) {
+                    this.cS.setTarget(data[0]);
+                }
+
+                // update the line geometry with the starting positions
+                this.lineGeometry.dispose();
+                this.lineGeometry = new THREE.Geometry();
+                for (const vert of startingPos) {
+                    this.lineGeometry.vertices.push(vert);
+                }
+
+                // Animate mesh tweening
+                if (this.remeshTween) {
+                    this.remeshTween.stop();
+                }
+
+                this.animatingSource.next(true);
+                
+                const remeshTween = new TWEEN.Tween({t: 0})
+                    .to({t: 1}, 1000)
+                    .onUpdate(({t}) => {
+                        startingPos.forEach((start, i) => {
+                            this.lineGeometry.vertices[i] = start.clone().lerp(endingPos[i], t);
+                        });
+                        this.lineGeometry.verticesNeedUpdate = true;
+                        this.lineGeometry.computeBoundingBox();
+                        const center = this.lineGeometry.boundingBox.min.clone().lerp(
+                            this.lineGeometry.boundingBox.max, 0.5);
+                    })
+                    .onComplete(() => {
+                        this.remeshTween = null;
+                        this.animatingSource.next(false);
+                    })
+
+                remeshTween.start();
+                this.remeshTween = remeshTween;
+
                 this.lineGeometry.verticesNeedUpdate = true;
-                this.lineGeometry.verticesNeedUpdate = true;
-                this.lineGeometry.elementsNeedUpdate = true;
-                this.lineGeometry.uvsNeedUpdate = true;
-                this.lineGeometry.normalsNeedUpdate = true;
-                this.lineGeometry.colorsNeedUpdate = true;
-                this.sM.sm.camera.lookAt(this.lineMesh.position);
+                this.lineMesh.geometry = this.lineGeometry;
             })
 
         const exitSel = join
             .exit()
             .call((selection) => {
-                console.log('remove', selection);
+                // TODO clean up resources?
             })
             .remove()
 
@@ -191,26 +228,80 @@ export class GenomeModelSystem extends System {
         );
     }
 
+    repositionEntity(e: Entity) {
+        const ic = e.getComponent(IntervalComponent);
+        const gs = e.getComponent(GenomeSegment);
+        let worldPositions;
+        if (this.modelLayout === 'String') {
+            worldPositions = gs.positions.map(pos => this.getWorldPosition(pos));
+        } else if (this.modelLayout === 'Linear') {
+            const viewRange = this.gTS.viewRange;
+            const t1 = (ic.interval.start - viewRange[0]) / (viewRange[1] - viewRange[0]);
+            const t2 = (ic.interval.start - viewRange[0]) / (viewRange[1] - viewRange[0]);
+
+            const worldScale = this.gTS.worldSize;
+
+            worldPositions = [t1, t2].map((t) => new THREE.Vector3(0, 0, t * worldScale));
+        } else {
+            const worldScale = this.gTS.worldSize;
+            const viewRange = this.gTS.viewRange;
+            
+            const t1 = (ic.interval.start - viewRange[0]) / (viewRange[1] - viewRange[0]);
+            const t2 = (ic.interval.start - viewRange[0]) / (viewRange[1] - viewRange[0]);
+
+            worldPositions = [t1, t2].map((t) => {
+                const x = worldScale * Math.cos(2 * Math.PI * t);
+                const y = worldScale * Math.sin(2 * Math.PI * t);
+                return new THREE.Vector3(x, 0, y);
+            });
+        }
+        // Set the entities +z axis to the world position.
+
+        const start = worldPositions[0];
+        const end = worldPositions[1];
+        const dir = worldPositions[1].clone().sub(worldPositions[0]);
+        // set the transform to be the midpoint
+        e.gameObject.transform.position.copy(start.clone().lerp(end, 0.5));
+        e.gameObject.transform.lookAt(worldPositions[1]);
+
+        // line should be centered at (0, 0, 0) pointing to (0, 0, length(vec));
+        const startPoint = new THREE.Vector3(0, 0, - dir.length() / 2)
+        const endPoint = new THREE.Vector3(0, 0, dir.length() / 2);
+
+        gs.length = dir.length();
+        gs.worldStart = start;
+        gs.worldEnd = end;
+
+        (gs.line.geometry as THREE.Geometry).vertices[0] = startPoint;
+        (gs.line.geometry as THREE.Geometry).vertices[1] = endPoint;
+        (gs.line.geometry as THREE.Geometry).verticesNeedUpdate = true;
+    }
+
     onECSInit() {
         this.sM = this.ecs.getSystem(SceneManagerSystem);
         this.gTS = this.ecs.getSystem(GenomeTreeSystem);
+        this.cS = this.ecs.getSystem(CameraFollowSystem);
         this.gMS = this.ecs.getService(GenomeModelService);
 
         this.lineMaterial = new THREE.LineBasicMaterial({
-            color: 0x00ffff,
-            linewidth: 5
+            color: 0xffffff,
+            linewidth: 10
         });
         this.lineGeometry = new THREE.Geometry();
-        this.lineGeometry.vertices.push(
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(100, 100, 100)
-        )
         this.lineMesh = new THREE.Line(this.lineGeometry, this.lineMaterial);
         this.lineMesh.frustumCulled = false;
 
         this.sM.sm.scene.add(this.lineMesh);
 
         this.subscribeOnEntityChange();
+
+        // let i = 0;
+        // const layouts: GenomeModelLayout[] = ['Linear', 'Circular'];
+
+        // setInterval(() => {
+        //     this.modelLayoutSource.next(layouts[i % layouts.length]);
+        //     i++;
+        // }, 10000)
 
         // let num = 0;
         // setInterval(() => {
@@ -307,8 +398,8 @@ export class DebugGenomeModelSystem extends System {
         gs.debugY = y;
         gs.debugZ = z;
         e.gameObject.transform.add(x);
-        e.gameObject.transform.add(y);
-        e.gameObject.transform.add(z);
+        // e.gameObject.transform.add(y);
+        // e.gameObject.transform.add(z);
     }
 
     exit(e: Entity) {

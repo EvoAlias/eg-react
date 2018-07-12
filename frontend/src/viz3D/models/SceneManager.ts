@@ -25,7 +25,7 @@ export class SceneManager {
 
     constructor(public canvas: HTMLCanvasElement) {
         const scene = this.scene = new THREE.Scene();
-        const camera = this.camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+        const camera = this.camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 10000);
 
         camera.position.set(-50, 50, 50);
         camera.lookAt(new Vector3(50, 50, 50));

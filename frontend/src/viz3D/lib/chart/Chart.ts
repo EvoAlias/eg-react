@@ -16,7 +16,7 @@ export interface ChartMargin {
 
 export interface ChartOptions {
     width: number;
-    height: number; 
+    height: number;
     margin: Partial<ChartMargin>;
     xAxis: Partial<AxisOptions>;
     yAxis: Partial<AxisOptions>;
@@ -46,13 +46,16 @@ export class Chart {
     chartBase: HTMLElement;
     chart: d3.Selection<HTMLElement, ChartDatum, null, undefined>;
 
-    propsFor: {[id: number]: Partial<DatumProps>} = {};
-    colorToDatum: {[col: string]: ChartDatum} = {};
+    propsFor: { [id: number]: Partial<DatumProps> } = {};
+    colorToDatum: { [col: string]: ChartDatum } = {};
 
     datums: ChartDatum[];
 
     x: d3.ScaleLinear<number, number>;
     y: d3.ScaleLinear<number, number>;
+
+    fontBase = 1000;                   // selected default height for canvas
+    fontSize = 70;                     // default size for font
 
     uvX: d3.ScaleLinear<number, number>;
     uvY: d3.ScaleLinear<number, number>;
@@ -73,6 +76,8 @@ export class Chart {
             top: 20, right: 20, bottom: 30, left: 50
         }, margin)
 
+        this.fontSize = height / 32;
+
         this.width = width - this.margin.left - this.margin.right;
         this.height = height - this.margin.top - this.margin.bottom;
 
@@ -82,7 +87,9 @@ export class Chart {
             canvas.width = width;
             canvas.height = height;
         }
-    
+
+        console.log('width', this.width, this.height);
+
         this.chartBase = document.createElement('chart');
         this.chart = d3.select(this.chartBase);
 
@@ -142,13 +149,13 @@ export class Chart {
             .merge(enterSel)
             .attr('fillStyle', this.getPropsWithDefault('fillStyle', () => 'red'))
             .attr('fillStyleHidden', this.getPropsWithDefault('fillStyleHidden', () => this.genColor()))
-        
+
         const exitSel = join.exit();
 
         this.drawReal();
         this.drawHidden();
     }
-    
+
     draw(hidden?: boolean) {
         hidden ? this.drawHidden() : this.drawReal();
     }
@@ -159,7 +166,7 @@ export class Chart {
 
         this.drawXAxis();
         this.drawYAxis();
-        
+
         // draw markers
         const elements = this.chart.selectAll('datum');
         elements.each(drawMarker(context));
@@ -222,6 +229,7 @@ export class Chart {
         const ctx = this.getContext();
         ctx.strokeStyle = "black";
         ctx.strokeRect(x, y, 100, 50);
+        ctx.font = this.getFont();
         ctx.fillText(`value: ${value.y()}`, x + 20, y + 20);
     }
 
@@ -241,11 +249,12 @@ export class Chart {
             ctx.lineTo(this.x(d), this.height + tickSize);
         });
         ctx.stroke();
-        
+
         ctx.fillStyle = 'black';
 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
+        ctx.font = this.getFont();
         ticks.forEach((d) => {
             ctx.fillText(tickFormat(d), this.x(d), this.height + tickSize)
         });
@@ -269,16 +278,16 @@ export class Chart {
         ctx.beginPath();
         ticks.forEach(d => {
             ctx.moveTo(xRange[0], this.y(d));
-            ctx.lineTo(xRange[0]-tickSize, this.y(d));
+            ctx.lineTo(xRange[0] - tickSize, this.y(d));
         })
         ctx.stroke();
- 
+
         // draw axis
         ctx.beginPath()
-        ctx.moveTo(xRange[0] -tickSize, 0);
+        ctx.moveTo(xRange[0] - tickSize, 0);
         ctx.lineTo(xRange[0] + 0.5, 0);
         ctx.lineTo(xRange[0] + 0.5, this.height);
-        ctx.lineTo(xRange[0] -tickSize, this.height);
+        ctx.lineTo(xRange[0] - tickSize, this.height);
         ctx.strokeStyle = 'black';
         ctx.stroke();
 
@@ -286,6 +295,7 @@ export class Chart {
 
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
+        ctx.font = this.getFont();
         ticks.forEach(d => {
             ctx.fillText(tickFormat(d), xRange[0] - tickSize - tickPadding, this.y(d))
         });
@@ -299,7 +309,7 @@ export class Chart {
 
     }
 
-    getCanvas(hidden? : boolean) {
+    getCanvas(hidden?: boolean) {
         const canvas = hidden ? this.hiddenCanvas : this.mainCanvas;
         return canvas;
     }
@@ -318,6 +328,13 @@ export class Chart {
         const x = this.uvX(uvX);
         const y = this.uvY(uvY);
         return this.getDatumAt(x, y);
+    }
+
+
+    getFont() {
+        const ratio = this.fontSize / this.fontBase;   // calc ratio
+        const size = this.mainCanvas.height * ratio;   // get font size based on current width
+        return (size | 0) + 'px sans-serif'; // set font
     }
 
     getPropsWithDefault(propName: string, getDefault: (d: ChartDatum) => any) {
@@ -360,12 +377,12 @@ export class Chart {
 
         const ret = [];
         if (this.nextCol < 16777215) {
-    
+
             ret.push(this.nextCol & 0xff); // R 
             ret.push((this.nextCol & 0xff00) >> 8); // G 
             ret.push((this.nextCol & 0xff0000) >> 16); // B
             this.nextCol += 1;
-    
+
         }
         const col = "rgb(" + ret.join(',') + ")";
         return col;
@@ -373,7 +390,7 @@ export class Chart {
 }
 
 function drawMarker(context: CanvasRenderingContext2D, hidden?: boolean) {
-    return function(this: any) {
+    return function (this: any) {
         const width = 10;
         const height = 10;
         const hw = width / 2;

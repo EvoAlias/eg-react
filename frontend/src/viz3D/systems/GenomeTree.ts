@@ -54,7 +54,7 @@ export class GenomeTreeSystem extends System {
 
     // Linear size in THREEjs units (meters)
     // Ex. worldsize is 10. Everything in the world fits in the box 10 units out from all axis.
-    private worldSizeSubject: BehaviorSubject<number> = new BehaviorSubject<number>(100);
+    private worldSizeSubject: BehaviorSubject<number> = new BehaviorSubject<number>(1000);
     worldSize$ = this.worldSizeSubject.asObservable();
     get worldSize() {
         return this.worldSizeSubject.getValue();
