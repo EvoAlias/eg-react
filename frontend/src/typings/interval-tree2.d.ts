@@ -49,6 +49,7 @@ declare module 'interval-tree2' {
         add(start: number, end: number, id?: number): Interval;
         pointSearch(val: number, node?: Node): Interval[];
         rangeSearch(start: number, end: number): Interval[];
+        search(start: number, end: number): Interval[];
         remove(id: number): void;
     }
     export default IntervalTree

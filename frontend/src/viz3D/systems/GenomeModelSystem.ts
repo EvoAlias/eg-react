@@ -47,15 +47,18 @@ export class GenomeModelSystem extends System {
     gTS: GenomeTreeSystem;
     gMS: GenomeModelService;
 
+    lineMaterial: THREE.LineBasicMaterial;
+    lineGeometry: THREE.Geometry;
+    lineMesh: THREE.Line;
+
     currentInterval: ChromosomeInterval;
-    loadedChromosomes: {[chr: string]: boolean} = {};
+    loadedChromosomes: { [chr: string]: boolean } = {};
 
     test(e: Entity) {
         return e.hasComponent(IntervalComponent) && e.hasComponent(GenomeSegment);
     }
 
     async reloadView(viewRange: RangeInterval) {
-        console.log('staring reload view')
         const interval = this.gTS.viewToChromosomeInterval(viewRange);
 
         // check if we've loaded this chromosome.
@@ -67,7 +70,7 @@ export class GenomeModelSystem extends System {
         const details = await this.gMS.loadChromosomeAsync(interval.chr);
 
         // create entities for every interval in the genome model
-        const chromosomeIntervals = details.genomicCoords.map((r) => new ChromosomeInterval('chr21', r[0], r[1]))
+        const chromosomeIntervals = details.genomicCoords.map((r) => new ChromosomeInterval(interval.chr, r[0], r[1]))
         const viewIntervals = chromosomeIntervals.map((i) => this.gTS.chromosomeIntervalToView(i));
         const length = viewIntervals.length;
         const entities = viewIntervals.map((range, i) => {
@@ -78,10 +81,8 @@ export class GenomeModelSystem extends System {
             const entity = this.gTS.createEntityWithInterval(range, [gs]);
             return entity;
         })
-        entities.forEach(e => this.ecs.addEntity(e));
+        // entities.forEach(e => this.ecs.addEntity(e));
         this.currentInterval = interval;
-        
-        console.log('ending reload view')
     }
 
     subscribeOnEntityChange() {
@@ -89,7 +90,7 @@ export class GenomeModelSystem extends System {
 
         this.gTS.viewRange$.pipe(
             debounce(() => this.ecs.fixedUpdate$),
-            tap(() => console.log('view changed')),
+            tap((viewRange) => console.log('view changed', viewRange)),
             // load entities in view
             switchMap((viewRange) => {
                 return from(this.reloadView(viewRange))
@@ -102,10 +103,10 @@ export class GenomeModelSystem extends System {
             debounce(() => this.ecs.fixedUpdate$),
             tap(() => console.log('entities changed')),
         )
-        .subscribe((entities) => {
-            // console.log('entites', entities)
-            this.data(entities);
-        })
+            .subscribe((entities) => {
+                // console.log('entites', entities)
+                this.data(entities);
+            })
     }
 
     repositionEntity(e: Entity) {
@@ -132,7 +133,7 @@ export class GenomeModelSystem extends System {
     }
 
     data(data: Entity[]) {
-        console.log('new entities', data);
+        // console.log('entities', data);
         // Use d3 to manage the rendering and update cycle
 
         // join is to update existing elements
@@ -147,15 +148,26 @@ export class GenomeModelSystem extends System {
         // enterSel is for adding new elements
         const enterSel = join.enter()
             .append('genome-segment-component')
-            // .call((selection) => {
-            //     selection.each((e: Entity) => this.repositionEntity(e))
-            // })
+        // .call((selection) => {
+        //     selection.each((e: Entity) => this.repositionEntity(e))
+        // })
 
         // merge enter and update
         join
             .merge(enterSel)
             .call((selection) => {
-                selection.each((e: Entity) => this.repositionEntity(e))
+                selection.each((e: Entity) => this.repositionEntity(e));
+                // Remove all verticies in the geometry
+                this.lineGeometry.vertices.splice(0, this.lineGeometry.vertices.length);
+                selection.each((e) => this.lineGeometry.vertices.push(e.gameObject.transform.position.clone()));
+                console.log('line geo', this.lineGeometry.vertices.length);
+                this.lineGeometry.verticesNeedUpdate = true;
+                this.lineGeometry.verticesNeedUpdate = true;
+                this.lineGeometry.elementsNeedUpdate = true;
+                this.lineGeometry.uvsNeedUpdate = true;
+                this.lineGeometry.normalsNeedUpdate = true;
+                this.lineGeometry.colorsNeedUpdate = true;
+                this.sM.sm.camera.lookAt(this.lineMesh.position);
             })
 
         const exitSel = join
@@ -183,6 +195,21 @@ export class GenomeModelSystem extends System {
         this.sM = this.ecs.getSystem(SceneManagerSystem);
         this.gTS = this.ecs.getSystem(GenomeTreeSystem);
         this.gMS = this.ecs.getService(GenomeModelService);
+
+        this.lineMaterial = new THREE.LineBasicMaterial({
+            color: 0x00ffff,
+            linewidth: 5
+        });
+        this.lineGeometry = new THREE.Geometry();
+        this.lineGeometry.vertices.push(
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(100, 100, 100)
+        )
+        this.lineMesh = new THREE.Line(this.lineGeometry, this.lineMaterial);
+        this.lineMesh.frustumCulled = false;
+
+        this.sM.sm.scene.add(this.lineMesh);
+
         this.subscribeOnEntityChange();
 
         // let num = 0;
@@ -214,7 +241,7 @@ export class GenomeModelSystem extends System {
         gs.line.geometry.dispose();
     }
 
-    
+
 }
 
 export class SelectedGenomeModelSystem extends System {

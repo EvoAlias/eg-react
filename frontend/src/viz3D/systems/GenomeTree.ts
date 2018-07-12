@@ -44,9 +44,13 @@ export class GenomeTreeSystem extends System {
     // Entities with an IntervalComponent representing an entire chromosome.
     chromosomeEntities: { [name: string]: Entity } = {};
 
-    // Entities to update this cycle. 
-    toUpdateSubject: BehaviorSubject<Entity[]> = new BehaviorSubject<Entity[]>([]);
-    toUpdate$ = this.toUpdateSubject.asObservable();
+    // Last entitiy added
+    // State changes only get detected when an entity is added to the ecs. However interval entities
+    // should not be directly added to the ecs as the GenomeTree is responsible for adding and removing them
+    // this observable forces the GenomeTreeSystem to check for state changes outside of the typical ecs system.
+
+    private lastIntervalEntityAdded: BehaviorSubject<Entity> = new BehaviorSubject<Entity>(null);
+    private lastIntervalEntityAdded$ = this.lastIntervalEntityAdded.asObservable();
 
     // Linear size in THREEjs units (meters)
     // Ex. worldsize is 10. Everything in the world fits in the box 10 units out from all axis.
@@ -182,16 +186,27 @@ export class GenomeTreeSystem extends System {
                 map((entities) => ({viewRange, currentEntites: entities}))
             )),
             // Rate limit this to the ECS fixed update
-            debounce(() => this.ecs.fixedUpdate$)
+            debounce(() => this.ecs.fixedUpdate$),
+            // rerun when interval tree changes
+            switchMap((obj) => {
+                return this.lastIntervalEntityAdded$.pipe(
+                    map(() => obj)
+                )
+            }),
+            // rate limit to the ECS fixed update
+            debounce(() => this.ecs.fixedUpdate$),
+            
         )
         .subscribe(({viewRange, currentEntites}) => {
             // First get all intervals in current range.
-            const inRange = this.intervalTree.rangeSearch(viewRange[0], viewRange[1]);
-
+            const inRange = this.intervalTree.search(viewRange[0], viewRange[1]);
+            // const inRange = this.intervalTree.search(0, 3e10);
+            // console.log('view range', viewRange, inRange);
+            // console.log('current', currentEntites);
             // use d3 to track intervals in and out of range.
-            const join = d3.select(this.sM.sm.renderer.domElement)
+            const join = d3.select<HTMLCanvasElement, Interval>(this.sM.sm.renderer.domElement)
                 .selectAll('interval-component')
-                .data(inRange as any, (d: Interval) => `${d.id}`)
+                .data(inRange, (d: Interval) => `${d.id}`)
 
             const enterSel = join.enter()
                 .append('interval-component')
@@ -199,6 +214,7 @@ export class GenomeTreeSystem extends System {
                     selection.each((i: Interval) => {
                         this.ecs.addEntity(this.intervalToEntity[i.id])
                     })
+                    // console.log('enter selection', selection);
                 })
 
             join
@@ -210,6 +226,7 @@ export class GenomeTreeSystem extends System {
                     selection.each((i: Interval) => {
                         this.ecs.removeEntity(this.intervalToEntity[i.id])
                     })
+                    // console.log('exit selection', selection);
                 })
                 .remove()
 
@@ -270,7 +287,9 @@ export class GenomeTreeSystem extends System {
             const ic = entity.getComponent(IntervalComponent);
             this.chromosomeIntervals[c.getName()] = ic.interval;
         });
-        // this.updateViewRange([0, 100000]);
+        const chr1 = this.chromosomeIntervals.chr1;
+        const length = chr1.end - chr1.start;
+        this.updateViewRange([chr1.start, chr1.start + (length / 8)]);
     }
 
     updateViewRange(viewRange: RangeInterval) {
@@ -287,11 +306,11 @@ export class GenomeTreeSystem extends System {
         const i = 
             this.intervalTree.add(interval[0], interval[1]);
         
-            
         const entity = new Entity([new IntervalComponent(i,
             this.viewToChromosomeInterval([i.start, i.end])), ...components]); 
         const ic = entity.getComponent(IntervalComponent);
         this.intervalToEntity[ic.interval.id] = entity;
+        this.lastIntervalEntityAdded.next(entity);
         return entity;
     }
 
