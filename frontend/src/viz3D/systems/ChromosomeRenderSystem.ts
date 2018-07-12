@@ -68,7 +68,7 @@ export class ChromosomeRenderSystem extends System {
                     let lastPos = startPos;
                     for (let i = chromosomeSegmentViewRange[0]; i < chromosomeSegmentViewRange[1]; i += incr) {
                         const pos = this.gCS.getPositionAt(i);
-                        pos.x = this.gTS.viewToWorld(i);
+                        // pos.x = this.gTS.viewToWorld(i);
                         cc.geometry.vertices.push(pos);
 
                         // create an arrow in the direction of the

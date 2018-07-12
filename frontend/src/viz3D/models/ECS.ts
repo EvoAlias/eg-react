@@ -1,13 +1,15 @@
 import { Entity } from "./Entity";
 import { System, SystemConstructor } from "./System";
 import * as uuid from 'uuid/v4';
-import { interval } from "rxjs";
+import { interval, BehaviorSubject, Observable } from "rxjs";
+import { filter, debounce } from "rxjs/operators";
 
 // TODO watch changes on entity system dirty
 
 export class ECS {
     entities: Entity[] = [];
-    entitiesSystemsDirty: Entity[] = [];
+    entitiesSystemsDirty = new BehaviorSubject<Entity[]>([]);
+    entitiesSystemsDirty$: Observable<Entity[]> = this.entitiesSystemsDirty.asObservable();
     systems: System[] = [];
     
     fixedUpdate$ = interval(34);
@@ -30,11 +32,15 @@ export class ECS {
                 }
             }
         });
-        // Update interval
-
-        this.fixedUpdate$.subscribe(() => {
-            this.fixedUpdate();
-        });
+        // Check for updates every fixed update
+        this.entitiesSystemsDirty$.pipe(
+            // Ignore cases when everything is clean
+            filter(entities => entities.length > 0),
+            // ratelimit with fixed update
+            debounce(() => this.fixedUpdate$)
+        ).subscribe(() => {
+            this.cleanDirtyEntities();
+        })
     }
 
     getEntityById(id: number) {
@@ -63,6 +69,10 @@ export class ECS {
         return entityRemoved;
     }
 
+    setEntityDirty(entity: Entity) {
+        this.entitiesSystemsDirty.next([...this.entitiesSystemsDirty.getValue(), entity]);
+    }
+
     removeEntityById(entityId: number): Entity {
         const index = this.entities.findIndex(e => e.id === entityId);
         if (index !== -1) {
@@ -77,10 +87,12 @@ export class ECS {
     }
 
     removeEntityIfDirty(entity: Entity) {
-        const index = this.entitiesSystemsDirty.indexOf(entity);
+        const entities = this.entitiesSystemsDirty.getValue();
+        const index = entities.indexOf(entity);
 
         if (index !== -1) {
-            this.entitiesSystemsDirty.splice(index, 1)
+            entities.splice(index, 1);
+            this.entitiesSystemsDirty.next(entities);
         }
     }
 
@@ -102,7 +114,14 @@ export class ECS {
     }
 
     cleanDirtyEntities() {
-        for (const entity of this.entitiesSystemsDirty) {
+        const entities = this.entitiesSystemsDirty.getValue();
+        if (entities.length === 0) {
+            return;
+        }
+        // Clear entities system Dirty
+        this.entitiesSystemsDirty.next([]);
+        // update
+        for (const entity of entities) {
             // reversed systems to preserve order;
             const reversedSystems = this.systems.reverse();
             for (const system of reversedSystems) {
@@ -117,19 +136,18 @@ export class ECS {
             }
             entity.systemsDirty = false;
         }
-        this.entitiesSystemsDirty = [];
     }
 
     fixedUpdate() {
-        const now = performance.now()
-        const elapsed = now - this.lastUpdate;
-        for (const system of this.systems) {
-            if (this.entitiesSystemsDirty.length) {
-                this.cleanDirtyEntities();
-            }
-        }
-        this.updateCounter += 1;
-        this.lastUpdate = now;
+        // const now = performance.now()
+        // const elapsed = now - this.lastUpdate;
+        // for (const system of this.systems) {
+        //     if (this.entitiesSystemsDirty.length) {
+        //         this.cleanDirtyEntities();
+        //     }
+        // }
+        // this.updateCounter += 1;
+        // this.lastUpdate = now;
     }
 
     nextID() {

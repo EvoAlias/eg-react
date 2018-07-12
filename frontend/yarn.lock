@@ -238,6 +238,10 @@
     react-split-pane "^0.1.77"
     react-treebeard "^2.1.0"
 
+"@tweenjs/tween.js@^17.2.0":
+  version "17.2.0"
+  resolved "https://registry.yarnpkg.com/@tweenjs/tween.js/-/tween.js-17.2.0.tgz#21f89b709bafc4b303adae7a83b4f35a0d9e4796"
+
 "@types/axios@^0.14.0":
   version "0.14.0"
   resolved "https://registry.yarnpkg.com/@types/axios/-/axios-0.14.0.tgz#ec2300fbe7d7dddd7eb9d3abf87999964cafce46"
@@ -420,6 +424,10 @@
     "@types/d3-voronoi" "*"
     "@types/d3-zoom" "*"
 
+"@types/event-emitter@^0.3.2":
+  version "0.3.2"
+  resolved "https://registry.yarnpkg.com/@types/event-emitter/-/event-emitter-0.3.2.tgz#b0c2764cf3e190f301bc91324dee5213ff7bf4e1"
+
 "@types/geojson@*":
   version "7946.0.4"
   resolved "https://registry.yarnpkg.com/@types/geojson/-/geojson-7946.0.4.tgz#4e049756383c3f055dd8f3d24e63fb543e98eb07"
@@ -473,6 +481,10 @@
   resolved "https://registry.yarnpkg.com/@types/three/-/three-0.92.7.tgz#b91f1c0c29ac8d1aef6bcb4c0756597262c24461"
   dependencies:
     "@types/webvr-api" "*"
+
+"@types/tween.js@^16.9.0":
+  version "16.9.0"
+  resolved "https://registry.yarnpkg.com/@types/tween.js/-/tween.js-16.9.0.tgz#af25067f86e15d2cba89b26776fc273ff7f55650"
 
 "@types/uuid@^3.4.3":
   version "3.4.3"
@@ -3700,7 +3712,7 @@ etag@~1.8.1:
   version "1.8.1"
   resolved "https://registry.yarnpkg.com/etag/-/etag-1.8.1.tgz#41ae2eeb65efa62268aebfea83ac7d79299b0887"
 
-event-emitter@~0.3.5:
+event-emitter@^0.3.5, event-emitter@~0.3.5:
   version "0.3.5"
   resolved "https://registry.yarnpkg.com/event-emitter/-/event-emitter-0.3.5.tgz#df8c69eef1647923c7157b9ce83840610b02cc39"
   dependencies:
@@ -8993,6 +9005,10 @@ text-table@0.2.0:
 three-orbit-controls@^82.1.0:
   version "82.1.0"
   resolved "https://registry.yarnpkg.com/three-orbit-controls/-/three-orbit-controls-82.1.0.tgz#11a7f33d0a20ecec98f098b37780f6537374fab4"
+
+three-stl-loader@^1.0.6:
+  version "1.0.6"
+  resolved "https://registry.yarnpkg.com/three-stl-loader/-/three-stl-loader-1.0.6.tgz#b66240f819300eee88928251937587c3fb4262c1"
 
 three@^0.93.0:
   version "0.93.0"

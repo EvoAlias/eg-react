@@ -8,14 +8,20 @@ export class SceneManagerSystem extends System {
         super();
     }
 
+    objectToEntity = new Map();
+
     test(e: Entity) {
         return e.hasComponent(GameObject);
     }
 
     enter(e: Entity) {
-        this.sm.scene.add(e.getComponent<GameObject>(GameObject).transform);
+        const go = e.getComponent(GameObject);
+        this.sm.scene.add(go.transform);
+        this.objectToEntity.set(go.transform.uuid, e);
     }
     exit(e: Entity) {
-        this.sm.scene.remove(e.getComponent<GameObject>(GameObject).transform);
+        const go = e.getComponent(GameObject);
+        this.sm.scene.remove(go.transform);
+        this.objectToEntity.delete(go.transform.uuid);
     }
 }

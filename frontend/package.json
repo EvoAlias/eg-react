@@ -11,12 +11,16 @@
     "test": "react-app-rewired test --env=jsdom --scripts-version react-scripts-ts"
   },
   "dependencies": {
+    "@tweenjs/tween.js": "^17.2.0",
     "@types/axios": "^0.14.0",
+    "@types/event-emitter": "^0.3.2",
     "d3": "^4.12.0",
+    "event-emitter": "^0.3.5",
     "interval-tree2": "^1.1.0",
     "rxjs": "^6.2.1",
     "three": "^0.93.0",
-    "three-orbit-controls": "^82.1.0"
+    "three-orbit-controls": "^82.1.0",
+    "three-stl-loader": "^1.0.6"
   },
   "devDependencies": {
     "@fortawesome/fontawesome": "^1.1.4",
@@ -36,6 +40,7 @@
     "@types/react-dom": "^16.0.6",
     "@types/react-redux": "^6.0.2",
     "@types/three": "^0.92.7",
+    "@types/tween.js": "^16.9.0",
     "@types/uuid": "^3.4.3",
     "axios": "^0.16.2",
     "enzyme": "^3.3.0",

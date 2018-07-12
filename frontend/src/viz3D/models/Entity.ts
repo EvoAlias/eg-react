@@ -4,6 +4,8 @@ import { System } from "./System";
 import { ECS } from "./ECS";
 import { GameObject } from "../components/GameObject";
 
+import * as ee from 'event-emitter';
+
 export type EntityID = number | string;
 
 let currentID = 1;
@@ -20,7 +22,12 @@ export class Entity {
     systemsDirty = false;
     ecs: ECS = null;
     id: number;
-    enabled: boolean;
+    
+    // From event-emitter
+    on: (event: string, listener: (...args: any[]) => void) => void;
+    once: (event: string, listener: (...args: any[]) => void) => void;
+    off: (event: string, listener: (...args: any[]) => void) => void;
+    emit: (event: string, ...args: any[]) => void;
 
     constructor(components: Array<Component | ComponentConstructor<Component>> = []) {
         this.id = nextID();
@@ -45,8 +52,7 @@ export class Entity {
     setSystemsDirty() {
         if (!this.systemsDirty && this.ecs) {
             this.systemsDirty = true;
-            
-            this.ecs.entitiesSystemsDirty.push(this);
+            this.ecs.setEntityDirty(this);
         }
     }
 
@@ -75,9 +81,16 @@ export class Entity {
         return !!this.components[constructor.name]
     }
 
+    removeComponent<T extends Component>(constructor: ComponentConstructor<T>) {
+        delete this.components[constructor.name];
+        this.setSystemsDirty();
+    }
+
     dispose() {
         for (const system of this.systems) {
             system.removeEntity(this);
         }
     }
 }
+
+ee(Entity.prototype);

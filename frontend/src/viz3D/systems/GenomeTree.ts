@@ -12,7 +12,7 @@ import { RangeInterval } from '../models/Range';
 
 import * as d3 from 'd3';
 
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, interval } from 'rxjs';
 import { switchMap, map, distinctUntilChanged, tap, throttle, debounce } from 'rxjs/operators';
 import { ChartComponent } from '../components/ChartComponent';
 import ChromosomeInterval from '../../model/interval/ChromosomeInterval';
@@ -20,8 +20,11 @@ import { TwoBitService } from '../services/TwoBitService';
 import { GeneService } from '../services/GeneService';
 import { GeneComponent, GenePart } from '../components/GeneComponent';
 import { Component, ComponentConstructor } from '../models/Component';
+import { SceneManagerSystem } from './SceneManagerSystem';
 
 export class GenomeTreeSystem extends System {
+    sM: SceneManagerSystem;
+
     twoBitService: TwoBitService;
     geneService: GeneService;
     
@@ -46,7 +49,8 @@ export class GenomeTreeSystem extends System {
     toUpdate$ = this.toUpdateSubject.asObservable();
 
     // Linear size in THREEjs units (meters)
-    private worldSizeSubject: BehaviorSubject<RangeInterval> = new BehaviorSubject<RangeInterval>([-5, 10]);
+    // Ex. worldsize is 10. Everything in the world fits in the box 10 units out from all axis.
+    private worldSizeSubject: BehaviorSubject<number> = new BehaviorSubject<number>(100);
     worldSize$ = this.worldSizeSubject.asObservable();
     get worldSize() {
         return this.worldSizeSubject.getValue();
@@ -58,24 +62,11 @@ export class GenomeTreeSystem extends System {
         return this.viewRangeSubject.getValue();
     }
 
-    viewToWorld = d3.scaleLinear().domain([0, 1000]).range([-5, 10]);
-    worldToView = d3.scaleLinear().range([0, 1000]).domain([-5, 10]);
-
     // Total number of base pairs.
     private bpCount: number; // total number of base pairs
 
     constructor(public config: GenomeConfig) {
         super();
-
-        this.worldSize$.subscribe((worldSize) => {
-            this.viewToWorld.range(worldSize);
-            this.worldToView.domain(worldSize);
-        });
-
-        this.viewRange$.subscribe((viewRange) => {
-            this.viewToWorld.domain(viewRange);
-            this.worldToView.range(viewRange);
-        });
     }
 
     test(entity: Entity) {
@@ -196,29 +187,52 @@ export class GenomeTreeSystem extends System {
         .subscribe(({viewRange, currentEntites}) => {
             // First get all intervals in current range.
             const inRange = this.intervalTree.rangeSearch(viewRange[0], viewRange[1]);
-            
-            // pick entities to remove from ecs;
-            const toRemove = currentEntites.filter((e) => {
-                const ic = e.getComponent(IntervalComponent);
-                const foundIntervalInRange = inRange.find(interval => interval.id === ic.interval.id);
-                return !foundIntervalInRange;
-            });
-            console.log(`[GeneTree]: inRange`, inRange);
-            console.log(`[GeneTree]: ${viewRange} Removing`, toRemove);
-            toRemove.forEach(e => this.ecs.removeEntity(e));
 
-            // pick entities to add to ecs;
-            const toAdd = inRange.map((interval) => {
-                return this.intervalToEntity[interval.id];
-            })
-            // remove entites in current entities list
-            .filter(e => currentEntites.indexOf(e) === -1);
-            console.log(`[GeneTree]: ${viewRange} Adding`, toAdd);
-            toAdd.forEach(e => this.ecs.addEntity(e));
+            // use d3 to track intervals in and out of range.
+            const join = d3.select(this.sM.sm.renderer.domElement)
+                .selectAll('interval-component')
+                .data(inRange as any, (d: Interval) => `${d.id}`)
+
+            const enterSel = join.enter()
+                .append('interval-component')
+                .call((selection) => {
+                    selection.each((i: Interval) => {
+                        this.ecs.addEntity(this.intervalToEntity[i.id])
+                    })
+                })
+
+            join
+                .merge(enterSel)
+
+            const exitSel = join
+                .exit()
+                .call((selection) => {
+                    selection.each((i: Interval) => {
+                        this.ecs.removeEntity(this.intervalToEntity[i.id])
+                    })
+                })
+                .remove()
+
+            // // pick entities to remove from ecs;
+            // const toRemove = currentEntites.filter((e) => {
+            //     const ic = e.getComponent(IntervalComponent);
+            //     const foundIntervalInRange = inRange.find(interval => interval.id === ic.interval.id);
+            //     return !foundIntervalInRange;
+            // });
+            // toRemove.forEach(e => this.ecs.removeEntity(e));
+
+            // // pick entities to add to ecs;
+            // const toAdd = inRange.map((interval) => {
+            //     return this.intervalToEntity[interval.id];
+            // })
+            // // remove entites in current entities list
+            // .filter(e => currentEntites.indexOf(e) === -1);
+            // toAdd.forEach(e => this.ecs.addEntity(e));
         });
     }
 
     onECSInit() {
+        this.sM = this.ecs.getSystem(SceneManagerSystem);
         this.twoBitService = this.ecs.getService(TwoBitService);
         this.geneService = this.ecs.getService(GeneService);
         this.initializeLoadingAndUnloadingRoutine();
@@ -256,7 +270,7 @@ export class GenomeTreeSystem extends System {
             const ic = entity.getComponent(IntervalComponent);
             this.chromosomeIntervals[c.getName()] = ic.interval;
         });
-        this.updateViewRange([0, 100000]);
+        // this.updateViewRange([0, 100000]);
     }
 
     updateViewRange(viewRange: RangeInterval) {
@@ -264,7 +278,7 @@ export class GenomeTreeSystem extends System {
     }
 
     // helpers
-    private createEntityWithInterval(interval: RangeInterval, 
+    createEntityWithInterval(interval: RangeInterval, 
         components: Array<Component | ComponentConstructor<Component>>): Entity 
     {
         if (interval[0] === interval[1]) {
