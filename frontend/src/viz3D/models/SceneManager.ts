@@ -16,17 +16,30 @@ import * as Tween  from '@tweenjs/tween.js';
 import { NumericTrackSystem } from '../systems/NumericTrackSystem';
 import { Vector3 } from 'three';
 import { GenomeModelService } from '../services/GenomeModelService';
+import { SelectionSystem } from '../systems/SelectionSystem';
 
 export class SceneManager {
     scene: THREE.Scene;
-    camera: THREE.Camera;
-    renderer: THREE.Renderer;
+    camera: THREE.PerspectiveCamera;
+    hudScene: THREE.Scene;
+    hudCamera: THREE.OrthographicCamera;
+    renderer: THREE.WebGLRenderer;
     ecs: ECS;
 
     constructor(public canvas: HTMLCanvasElement) {
         const scene = this.scene = new THREE.Scene();
-        const camera = this.camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 10000);
+        const aspectRatio = canvas.width / canvas.height;
 
+        const camera = this.camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+
+        const height = 100;
+        const width = aspectRatio * 100;
+
+        const hudScene = this.hudScene = new THREE.Scene();
+        const hudCamera = this.hudCamera = 
+            new THREE.OrthographicCamera(
+                -width / 2, width / 2, height / 2, -height / 2, 1, 10);
+        
         camera.position.set(-50, 50, 50);
         camera.lookAt(new Vector3(50, 50, 50));
 
@@ -37,7 +50,9 @@ export class SceneManager {
         const gl = renderer.domElement.getContext('webgl') ||
             renderer.domElement.getContext('experimental-webgl');
         gl.getExtension('OES_standard_derivatives');
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(canvas.width, canvas.height);
+        renderer.autoClear = false;
         // renderer.setClearColor( 0xffffff );
         this.ecs = new ECS([
             new SceneManagerSystem(this),
@@ -46,8 +61,9 @@ export class SceneManager {
             new GenomeTreeSystem(HG19),
             new GenomeModelSystem(),
             new SelectedGenomeModelSystem(),
-            new DebugGenomeModelSystem(),
+            // new DebugGenomeModelSystem(),
             new NumericTrackSystem(),
+            new SelectionSystem(),
             // new GeneRenderSystem(),
             // new ChromosomeRenderSystem(),
             // new ChartSystem(),
@@ -69,6 +85,8 @@ export class SceneManager {
         const r = () => {
             Tween.update();            
             this.renderer.render(this.scene, this.camera);
+            this.renderer.clearDepth();
+            this.renderer.render(this.hudScene, this.hudCamera);
             requestAnimationFrame(r);
         }
         requestAnimationFrame(r);

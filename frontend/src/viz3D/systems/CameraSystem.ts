@@ -6,12 +6,9 @@ import { Entity } from '../models/Entity';
 import * as TWEEN from '@tweenjs/tween.js';
 import { Component } from '../models/Component';
 import { lerp } from '../lib/lerp';
+import { SelectedComponent } from '../components/SelectedComponent';
 
 const OrbitControls = OBCPlugin(THREE);
-
-export class SelectedComponent implements Component {
-    readonly name = SelectedComponent.name;
-}
 
 export class CameraSystem extends System {
 

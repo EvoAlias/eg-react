@@ -25,7 +25,7 @@ export class VrContext extends Component<State> {
     render() {
         return (
             <div className="VrContext">
-                <canvas width="800px" height="640px" ref={element => this.threeRootElement = element}/>
+                <canvas width="500px" height="500px" ref={element => this.threeRootElement = element}/>
             </div>
         )
     }
