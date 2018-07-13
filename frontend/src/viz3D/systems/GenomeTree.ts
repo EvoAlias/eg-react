@@ -43,6 +43,8 @@ export class GenomeTreeSystem extends System {
     chromosomeIntervals: { [name: string]: Interval } = {};
     // Entities with an IntervalComponent representing an entire chromosome.
     chromosomeEntities: { [name: string]: Entity } = {};
+    // Chromsoome Intervals
+    chromosomeChromosomeIntervals: { [name: string]: ChromosomeInterval } = {};
 
     // Last entitiy added
     // State changes only get detected when an entity is added to the ecs. However interval entities
@@ -54,7 +56,7 @@ export class GenomeTreeSystem extends System {
 
     // Linear size in THREEjs units (meters)
     // Ex. worldsize is 10. Everything in the world fits in the box 10 units out from all axis.
-    private worldSizeSubject: BehaviorSubject<number> = new BehaviorSubject<number>(1000);
+    private worldSizeSubject: BehaviorSubject<number> = new BehaviorSubject<number>(100);
     worldSize$ = this.worldSizeSubject.asObservable();
     get worldSize() {
         return this.worldSizeSubject.getValue();
@@ -289,11 +291,13 @@ export class GenomeTreeSystem extends System {
         });
         const chr1 = this.chromosomeIntervals.chr1;
         const length = chr1.end - chr1.start;
-        this.updateViewRange([chr1.start, chr1.start + (length / 8)]);
+        this.updateViewRange([chr1.start, chr1.start + length / 8]);
     }
 
     updateViewRange(viewRange: RangeInterval) {
-        this.viewRangeSubject.next(viewRange);
+        // viewToChromosomeInteval truncates the view to only have one interval at a time
+        const interval = this.viewToChromosomeInterval(viewRange);
+        this.viewRangeSubject.next(this.chromosomeIntervalToView(interval));
     }
 
     // helpers
@@ -330,13 +334,14 @@ export class GenomeTreeSystem extends System {
             return this.chromosomeOffsets[a] - this.chromosomeOffsets[b]
         })
         const offsets = chromosomes.map(a => this.chromosomeOffsets[a]);
+        const ends = chromosomes.map(a => this.chromosomeEnds[a]);
         let start;
         for (start = chromosomes.length - 1; start >= 0 && offsets[start] > interval[0]; start--) {}
         
         const offset = interval[0] - offsets[start];
         const startPos = offset;
         const endPos = offset + (interval[1] - interval[0]);
-        return new ChromosomeInterval(chromosomes[start], startPos, endPos);
+        return new ChromosomeInterval(chromosomes[start], startPos, Math.min(ends[start], endPos));
     }
 
     chromosomeIntervalToView(interval: ChromosomeInterval): RangeInterval {

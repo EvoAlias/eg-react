@@ -61,7 +61,6 @@ export class GenomeModelService {
             prevPos = pos;
         }
 
-        console.log('genomic', genomicCoords, positions);
 
         positions.forEach(pos => boundingBox.expandByPoint(pos));
 

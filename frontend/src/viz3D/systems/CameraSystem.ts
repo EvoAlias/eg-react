@@ -16,12 +16,55 @@ export class CameraSystem extends System {
     lastSelected: Entity;
     controls: any;
 
+    cameraTween: TWEEN.Tween;
+
     setTarget(e: Entity) {
         if (this.lastSelected) {
             this.lastSelected.removeComponent(SelectedComponent);
         }
         this.lastSelected = e;
         this.lastSelected.addComponent(new SelectedComponent());
+    }
+
+    repositionCamera(wantedPosition: THREE.Vector3, wantedQuaternion: THREE.Quaternion, target: THREE.Vector3) {
+        if (this.cameraTween) {
+            this.cameraTween.stop();
+        }
+
+        const camera = this.sm.sm.camera;
+        const startingPostion = camera.position.clone();
+        const startingQuaternion = camera.quaternion.clone();
+        const startingLookAt = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+
+        const cloneCamera = camera.clone();
+        cloneCamera.lookAt(target);
+        const endingLookAt = new THREE.Vector3(0, 0, -1).applyQuaternion(cloneCamera.quaternion);
+
+        this.controls.enabled = false;
+        const moveTween = new TWEEN.Tween(camera.position)
+            .to(wantedPosition, 1000)
+            .easing(TWEEN.Easing.Quadratic.In)
+            .onUpdate((d) => {
+                const t = (d.x - startingPostion.x) / (wantedPosition.x - startingPostion.x);
+                THREE.Quaternion.slerp(startingQuaternion, wantedQuaternion, camera.quaternion, t);
+
+            });
+
+        const lookAtTween = new TWEEN.Tween(startingLookAt)
+            .to(endingLookAt, 1000)
+            .onUpdate((d) => {
+                camera.lookAt(d);
+            })
+            .onComplete(() => {
+                this.controls.enabled = true;
+                this.controls.target = target;
+                this.controls.update();
+                this.cameraTween = null;
+            })
+
+        this.cameraTween = moveTween;
+        moveTween.chain(lookAtTween);
+        moveTween.start();
     }
 
     onECSInit() {
@@ -46,8 +89,8 @@ export class CameraFollowSystem extends System {
     sm: SceneManagerSystem;
 
     target: THREE.Object3D;
-    distance = 10;
-    height = 5;
+    distance = 1;
+    height = 1;
 
     heightDamping = 2;
     rotationDamping = 3;
@@ -56,46 +99,6 @@ export class CameraFollowSystem extends System {
 
     test(e: Entity) {
         return e.hasComponent(SelectedComponent)
-    }
-
-
-    setupFollow() {
-        // deprecated
-        // let time = performance.now();
-        // this.ecs.fixedUpdate$.subscribe(() => {
-        //     const newTime = performance.now();
-        //     const deltaTime = newTime - time;
-        //     time = newTime;
-
-        //     if (!this.target) {
-        //         return;
-        //     }
-
-        //     const camera = this.sm.sm.camera;
-
-        //     const wantedRotationAngle = this.target.rotation.y;
-        //     const wantedHeight = this.target.position.y + this.height;
-
-        //     let currentRotationAngle = camera.rotation.y;
-        //     let currentHeight = camera.position.y
-
-        //     currentRotationAngle =
-        //         lerp(currentRotationAngle, wantedRotationAngle, this.rotationDamping * deltaTime / 1000)
-        //     currentHeight = lerp(currentHeight, wantedHeight, this.heightDamping * deltaTime / 1000);
-
-        //     const currentRotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, currentRotationAngle, 0));
-
-        //     // Set poistion to some distance behind
-        //     camera.position.copy(this.target.position);
-        //     const targetForward = new THREE.Vector3().applyQuaternion(currentRotation).multiplyScalar(this.distance);
-        //     camera.position.copy(camera.position.sub(targetForward));
-
-        //     camera.position.setY(currentHeight);
-        //     camera.lookAt(this.target.position);
-
-        //     this.cs.controls.target = this.target.position;
-        //     this.cs.controls.update();
-        // })
     }
 
     setTarget(e: Entity) {

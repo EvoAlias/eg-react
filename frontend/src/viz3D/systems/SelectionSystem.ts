@@ -90,6 +90,7 @@ export class SelectionSystem extends System {
     }
 
     selectEntities(entities: Entity[]) {
+        console.log('selecting', entities);
         this.selectedEntities.forEach((e) => e.removeComponent(SelectedComponent));
         entities.forEach(e => e.addComponent(new SelectedComponent()));
         this.selectedEntities = entities;
@@ -99,7 +100,9 @@ export class SelectionSystem extends System {
         this.mouseDowns.subscribe((event) => {
             const currentSelected = this.getEntities(event);
             console.log('down', event, currentSelected, this.selectedEntities)
-            this.selectEntities(currentSelected);
+            if (currentSelected.length > 0) {
+                this.selectEntities([currentSelected[0]]);
+            }
         });  
     }
 
@@ -148,7 +151,7 @@ export class SelectionSystem extends System {
             plane.geometry = geometry;
             plane.position.copy(world[0].clone().lerp(world[1], 0.5));
             this.sM.sm.hudScene.add(plane);
-            console.log('drag')
+            console.log('drag', world);
         },
             () => { },
             () => {

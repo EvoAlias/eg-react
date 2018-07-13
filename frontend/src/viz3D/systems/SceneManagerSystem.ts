@@ -8,7 +8,7 @@ export class SceneManagerSystem extends System {
         super();
     }
 
-    objectToEntity = new Map();
+    objectToEntity = new Map<string, Entity>();
 
     test(e: Entity) {
         return e.hasComponent(GameObject);

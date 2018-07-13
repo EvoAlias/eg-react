@@ -21,6 +21,9 @@ const STLLoader = require('three-stl-loader')(THREE);
 
 export class GenomeSegment implements Component {
     readonly name = GenomeSegment.name;
+    worldPositions: THREE.Vector3[];
+    length: number;
+
     line: THREE.Line;
 
     debugX: THREE.Line;
@@ -37,14 +40,14 @@ export class GenomeSegment implements Component {
 function selectedMaterial() {
     return new THREE.LineBasicMaterial({
         color: 0xffff00,
-        linewidth: 5
+        linewidth: 12
     });
 }
 
 function deselectedMaterial() {
     return new THREE.LineBasicMaterial({
         color: 0x00ffff,
-        linewidth: 5
+        linewidth: 10
     });
 }
 
@@ -140,6 +143,12 @@ export class GenomeModelSystem extends System {
         })
     }
 
+    setupDrawRoutine() {
+        this.ecs.render$.subscribe(() => {
+            this.draw(this);
+        });
+    }
+
     data(data: Entity[]) {
         // Use d3 to manage the rendering and update cycle
 
@@ -155,85 +164,109 @@ export class GenomeModelSystem extends System {
         // enterSel is for adding new elements
         const enterSel = join.enter()
             .append('genome-segment-component')
+            .attr('x0', e => e.gameObject.transform.position.x)
+            .attr('y0', e => e.gameObject.transform.position.y)
+            .attr('z0', e => e.gameObject.transform.position.z)
+            .attr('x1', e => e.gameObject.transform.position.x)
+            .attr('y1', e => e.gameObject.transform.position.y)
+            .attr('z1', e => e.gameObject.transform.position.z)
+            .attr('length', 0)
+            .attr('uuid', e => e.gameObject.transform.uuid)
 
         // merge enter and update
         join
             .merge(enterSel)
             .call((selection) => {
-                const startingPos: THREE.Vector3[] = [];
-                const endingPos: THREE.Vector3[] = [];
-
-                selection.each((e: Entity) => startingPos.push(e.gameObject.transform.position.clone()));
-                selection.each((e: Entity) => this.repositionEntity(e));
-                selection.each((e: Entity) => endingPos.push(e.gameObject.transform.position.clone()));
-
-                // setup next
-                // let i = 0;
-                // selection.each((e: Entity) => {
-                //     const start = startingPos[i];
-                //     const end = endingPos[Math.min(i + 1, endingPos.length - 1)];
-                //     const gs = e.getComponent(GenomeSegment);
-                //     const geometry = (gs.line.geometry as THREE.Geometry);
-                //     const vertices = geometry.vertices;
-                //     vertices[0] = start.clone();
-                //     vertices[1] = end.clone();
-                //     geometry.verticesNeedUpdate = true;
-                //     i += 1;
-                // })
-
-                // Set the target for the camera system
-                if (data.length > 0) {
-                    this.cS.setTarget(data[0]);
-                }
-
-                // update the line geometry with the starting positions
-                this.lineGeometry.dispose();
-                this.lineGeometry = new THREE.Geometry();
-                for (const vert of startingPos) {
-                    this.lineGeometry.vertices.push(vert);
-                }
-
-                // Animate mesh tweening
-                if (this.remeshTween) {
-                    this.remeshTween.stop();
-                }
-
-                this.animatingSource.next(true);
-
-                const remeshTween = new TWEEN.Tween({ t: 0 })
-                    .to({ t: 1 }, 1000)
-                    .onUpdate(({ t }) => {
-                        startingPos.forEach((start, i) => {
-                            this.lineGeometry.vertices[i] = start.clone().lerp(endingPos[i], t);
-                        });
-                        this.lineGeometry.verticesNeedUpdate = true;
-                        this.lineGeometry.computeBoundingBox();
-                        const center = this.lineGeometry.boundingBox.min.clone().lerp(
-                            this.lineGeometry.boundingBox.max, 0.5);
-                    })
-                    .onComplete(() => {
-                        this.remeshTween = null;
-                        this.animatingSource.next(false);
-                    })
-
-                remeshTween.start();
-                this.remeshTween = remeshTween;
-
-                this.lineGeometry.verticesNeedUpdate = true;
-                this.lineMesh.geometry = this.lineGeometry;
+                selection.each((e: Entity) => {
+                    const worldPositions = this.getWorldPositions(e);
+                    const gs = e.getComponent(GenomeSegment);
+                    gs.worldPositions = worldPositions;
+                    gs.length = worldPositions[0].distanceTo(worldPositions[1]);
+                });
+                console.log('updating', selection);
             })
+            .transition()
+            .attr('x0', e => e.getComponent(GenomeSegment).worldPositions[0].x)
+            .attr('y0', e => e.getComponent(GenomeSegment).worldPositions[0].y)
+            .attr('z0', e => e.getComponent(GenomeSegment).worldPositions[0].z)
+            .attr('x1', e => e.getComponent(GenomeSegment).worldPositions[1].x)
+            .attr('y1', e => e.getComponent(GenomeSegment).worldPositions[1].y)
+            .attr('z1', e => e.getComponent(GenomeSegment).worldPositions[1].z)
+            .attr('length', e => e.getComponent(GenomeSegment).length)
+
 
         const exitSel = join
             .exit()
             .call((selection) => {
                 // TODO clean up resources?
+                console.log('removing', selection);
             })
             .remove()
 
         // this.render();
     }
 
-    getWorldPosition(v: THREE.Vector3) {
+    draw(self: GenomeModelSystem) {
+        const lineGeometry = new THREE.Geometry();
+        const elements = d3.select(this.sM.sm.renderer.domElement)
+            .selectAll('genome-segment-component')
+            .each(drawSegment)
+
+        lineGeometry.verticesNeedUpdate = true;
+        this.lineMesh.geometry = lineGeometry;
+
+
+        function drawSegment(this: any) {
+            const node = d3.select(this);
+
+            const uuid = node.attr('uuid');
+            const x0 = +node.attr('x0');
+            const y0 = +node.attr('y0');
+            const z0 = +node.attr('z0');
+            const x1 = +node.attr('x1');
+            const y1 = +node.attr('y1');
+            const z1 = +node.attr('z1');
+            const length = +node.attr('length');
+
+            const t = self.gTS.worldSize / 1000 * Math.sin(performance.now() / 10000);
+
+            const worldPositions = [
+                new THREE.Vector3(x0, y0, z0),
+                new THREE.Vector3(x1, y1, z1),
+            ];
+
+            const distance = worldPositions[0].distanceTo(worldPositions[1]);
+
+            const linePositions = [
+                new THREE.Vector3(0, 0, 0),
+                // new THREE.Vector3(0, t, distance / 2),
+                new THREE.Vector3(0, 0, distance / 2),
+                new THREE.Vector3(0, 0, distance)
+            ];
+
+            const entity = self.sM.objectToEntity.get(uuid);
+
+            if (!entity) {
+                return;
+            }
+            const gs = entity.getComponent(GenomeSegment);
+            if (!gs) {
+                return;
+            }
+
+            lineGeometry.vertices.push(worldPositions[0].clone());
+
+            entity.gameObject.transform.position.copy(worldPositions[0]);
+            entity.gameObject.transform.lookAt(worldPositions[1]);
+            const geometry = gs.line.geometry as THREE.Geometry;
+            geometry.vertices[0] = linePositions[0];
+            geometry.vertices[1] = linePositions[1];
+            geometry.vertices[2] = linePositions[2];
+            geometry.verticesNeedUpdate = true;
+        }
+    }
+
+    gmsPositionToWorld(v: THREE.Vector3) {
         // scale along the bounding box. and map 
         const worldScale = this.gTS.worldSize;
         const details = this.gMS.loadChromosome(this.currentInterval.chr);
@@ -244,17 +277,17 @@ export class GenomeModelSystem extends System {
         );
     }
 
-    repositionEntity(e: Entity) {
+    getWorldPositions(e: Entity) {
         const ic = e.getComponent(IntervalComponent);
         const gs = e.getComponent(GenomeSegment);
         let worldPositions;
         if (this.modelLayout === 'String') {
-            worldPositions = gs.positions.map(pos => this.getWorldPosition(pos));
+            worldPositions = gs.positions.map(pos => this.gmsPositionToWorld(pos));
         } else if (this.modelLayout === 'Linear') {
             const viewRange = this.gTS.viewRange;
             const t1 = (ic.interval.start - viewRange[0]) / (viewRange[1] - viewRange[0]);
             const t2 = (ic.interval.end - viewRange[0]) / (viewRange[1] - viewRange[0]);
-            
+
             const worldScale = this.gTS.worldSize;
 
             worldPositions = [t1, t2].map((t) => new THREE.Vector3(0, 0, t * worldScale));
@@ -271,24 +304,7 @@ export class GenomeModelSystem extends System {
                 return new THREE.Vector3(x, 0, y);
             });
         }
-        // Set the entities +z axis to the world position.
-
-        const start = worldPositions[0];
-        const end = worldPositions[1];
-        const dir = worldPositions[1].clone().sub(worldPositions[0]);
-        // set the transform to be the midpoint
-        e.gameObject.transform.position.copy(start.clone());
-        e.gameObject.transform.lookAt(worldPositions[1]);
-
-        const geometry = (gs.line.geometry as THREE.Geometry);
-        const vertices = geometry.vertices;
-
-        const startPos = new THREE.Vector3(0, 0, 0);
-        const endPos = new THREE.Vector3(0, 0, dir.length());
-
-        vertices[0] = startPos;
-        vertices[1] = endPos;
-        geometry.verticesNeedUpdate = true;
+        return worldPositions;
     }
 
     onECSInit() {
@@ -308,14 +324,15 @@ export class GenomeModelSystem extends System {
         this.sM.sm.scene.add(this.lineMesh);
 
         this.subscribeOnEntityChange();
+        this.setupDrawRoutine();
 
-        let i = 0;
-        const layouts: GenomeModelLayout[] = ['Linear', 'Circular', 'String'];
+        // let i = 0;
+        // const layouts: GenomeModelLayout[] = ['Linear', 'Circular', 'String'];
 
-        setInterval(() => {
-            this.modelLayoutSource.next(layouts[i % layouts.length]);
-            i++;
-        }, 10000)
+        // setInterval(() => {
+        //     this.modelLayoutSource.next(layouts[i % layouts.length]);
+        //     i++;
+        // }, 10000)
 
         // let num = 0;
         // setInterval(() => {
@@ -332,10 +349,13 @@ export class GenomeModelSystem extends System {
         const material = deselectedMaterial();
         const geometry = new THREE.Geometry();
 
-        geometry.vertices.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 1));
+        geometry.vertices.push(new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0.5), new THREE.Vector3(0, 0, 1));
 
         const line = new THREE.Line(geometry, material);
-        e.gameObject.transform.add(line);
+        line.frustumCulled = false;
+        line.castShadow = true;
+        line.receiveShadow = true;
+        // e.gameObject.transform.add(line);
         gs.line = line;
     }
 

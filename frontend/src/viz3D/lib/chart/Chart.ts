@@ -73,7 +73,7 @@ export class Chart {
         margin = {},
     }: Partial<ChartOptions>) {
         this.margin = Object.assign({
-            top: 20, right: 20, bottom: 30, left: 50
+            top: 0, right: 0, bottom: 0, left: 0
         }, margin)
 
         this.fontSize = height / 32;
@@ -87,8 +87,6 @@ export class Chart {
             canvas.width = width;
             canvas.height = height;
         }
-
-        console.log('width', this.width, this.height);
 
         this.chartBase = document.createElement('chart');
         this.chart = d3.select(this.chartBase);
@@ -168,8 +166,8 @@ export class Chart {
         this.drawYAxis();
 
         // draw markers
-        const elements = this.chart.selectAll('datum');
-        elements.each(drawMarker(context));
+        // const elements = this.chart.selectAll('datum');
+        // elements.each(drawMarker(context));
         // draw lines
         const line = d3.line<ChartDatum>()
             .x(d => this.x(d.x()))
@@ -177,11 +175,17 @@ export class Chart {
             .curve(d3.curveStep)
             .context(context);
 
-        context.strokeStyle = '#999';
+        context.lineWidth = 10;
+        context.strokeStyle = '#f99';
+        context.fillStyle = '#f99';
         // context.lineWidth = 1.5;
         context.beginPath();
         line(this.datums);
-        context.stroke();
+
+        context.lineTo(this.x.range()[1], this.y.range()[0]);
+        context.lineTo(0, this.y.range()[0]);
+        context.closePath();
+        context.fill();
 
         if (this.onRepaint) {
             this.onRepaint();

@@ -1,7 +1,7 @@
 import { Entity } from "./Entity";
 import { System, SystemConstructor } from "./System";
 import * as uuid from 'uuid/v4';
-import { interval, BehaviorSubject, Observable } from "rxjs";
+import { interval, BehaviorSubject, Observable, Subject } from "rxjs";
 import { filter, debounce } from "rxjs/operators";
 
 // TODO watch changes on entity system dirty
@@ -13,6 +13,9 @@ export class ECS {
     systems: System[] = [];
     
     fixedUpdate$ = interval(34);
+    renderSource = new Subject<number>();
+    render$ = this.renderSource.asObservable();
+    
     updateCounter = 0;
     lastUpdate = performance.now();
 
