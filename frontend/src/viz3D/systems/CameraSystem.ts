@@ -14,59 +14,7 @@ export class CameraSystem extends System {
 
     sm: SceneManagerSystem;
     lastSelected: Entity;
-    raycaster = new THREE.Raycaster();
     controls: any;
-
-    getIntersections(event: MouseEvent): THREE.Intersection[] {
-        const mouse = new THREE.Vector2();
-        const renderer = this.sm.sm.renderer;
-        const canvas = renderer.domElement;
-
-        // mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
-        // mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
-        mouse.x = (event.offsetX / canvas.width) * 2 - 1;
-        mouse.y = - (event.offsetY / canvas.height) * 2 + 1;
-        // console.log('params', mouse, canvas, event);
-        this.raycaster.setFromCamera(mouse, this.sm.sm.camera);
-
-        const intersects = this.raycaster.intersectObjects(this.sm.sm.scene.children, true);
-        return intersects
-    }
-
-    getEntities(event: MouseEvent): Entity[] {
-        const intersects = this.getIntersections(event);
-
-        const currentSelected: Entity[] = [];
-
-        for (const intersect of intersects) {
-            let current = intersect.object;
-            do {
-                const entity = this.sm.objectToEntity.get(current.uuid);
-                if (entity) {
-                    currentSelected.push(entity);
-                }
-            } while (current = current.parent)
-        }
-
-        return currentSelected;
-    }
-
-    setupMouseEvents() {
-        const mouse = new THREE.Vector2();
-        const renderer = this.sm.sm.renderer;
-        const canvas = renderer.domElement;
-        const onMouse = (event: MouseEvent) => {
-            const currentSelected = this.getEntities(event);
-            if (this.lastSelected && currentSelected.indexOf(this.lastSelected) === -1) {
-                this.lastSelected.removeComponent(SelectedComponent);
-                this.lastSelected = null;
-            }
-            if (currentSelected.length > 0) {
-                this.setTarget(currentSelected[0]);
-            }
-        }
-        canvas.addEventListener('click', onMouse);
-    }
 
     setTarget(e: Entity) {
         if (this.lastSelected) {
@@ -78,8 +26,7 @@ export class CameraSystem extends System {
 
     onECSInit() {
         this.sm = this.ecs.getSystem(SceneManagerSystem);
-        this.setupMouseEvents();
-
+        
         const camera = this.sm.sm.camera;
         const renderer = this.sm.sm.renderer;
         const controls = this.controls = new OrbitControls(camera, renderer.domElement);

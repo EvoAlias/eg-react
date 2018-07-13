@@ -86,13 +86,13 @@ export class NumericTrackSystem extends System {
 
         const gS = e.getComponent(GenomeSegment);
 
-        const geometry = new THREE.PlaneGeometry(gS.getLength() / 10, 5);
+        const geometry = new THREE.PlaneGeometry(gS.getLength(), 5);
         const mesh = new THREE.Mesh(geometry, material);
 
         mesh.lookAt(new THREE.Vector3(-1, 0, 0));
         mesh.up.set(0, 1, 0);
         mesh.position.setY(2.5);
-        console.log('mesh', mesh);
+        console.log('mesh', mesh, gS, gS.getLength());
 
         chart.onRepaint = () => {
             texture.needsUpdate = true;

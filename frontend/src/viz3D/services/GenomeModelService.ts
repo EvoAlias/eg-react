@@ -39,9 +39,38 @@ export class GenomeModelService {
 
         const boundingBox = new THREE.Box3();
 
-        const genomicCoords: RangeInterval[] = data.genomicCoords;
-        const positions: THREE.Vector3[] = data.xyzPositions.map((pos: number[]) => new THREE.Vector3(...pos));
+        const genomicCoords: RangeInterval[] = [];
+        const positions: THREE.Vector3[] = [];
+
+        let prev: RangeInterval;
+        let prevPos: THREE.Vector3;
+
+        for(let i = 0; i < data.genomicCoords.length; i++) {
+            const current: RangeInterval = data.genomicCoords[i];
+            const pos = new THREE.Vector3(...data.xyzPositions[i]);
+            if (i > 0 && prev[1] < current[0]) {
+                const update = [prev[1], current[0]];
+                const posUpdate = prevPos.clone().lerp(pos, 0.5);
+                genomicCoords.push(update);
+                positions.push(posUpdate);
+            }
+
+            genomicCoords.push(current);
+            positions.push(pos);
+            prev = current;
+            prevPos = pos;
+        }
+
+        console.log('genomic', genomicCoords, positions);
+
         positions.forEach(pos => boundingBox.expandByPoint(pos));
+
+        // check continuality
+        for (let i = 0; i < genomicCoords.length - 1; i++) {
+            if (genomicCoords[i][1] !== genomicCoords[i + 1][0]) {
+                console.log('BREAK')
+            }
+        }
 
         for (const coords of genomicCoords) {
             if (coords[0] === coords[1]) {
@@ -50,7 +79,7 @@ export class GenomeModelService {
         }
 
         const interval = new ChromosomeInterval(
-            'chr21',
+            chr,
             genomicCoords[0][0],
             genomicCoords[genomicCoords.length - 1][1]
         );

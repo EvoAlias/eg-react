@@ -11,6 +11,8 @@ export class SelectionSystem extends System {
     sM: SceneManagerSystem;
     cS: CameraSystem;
 
+    raycaster = new THREE.Raycaster();
+
     mouseDowns: Observable<MouseEvent>;
     mouseUps: Observable<MouseEvent>;
     mouseMoves: Observable<MouseEvent>;
@@ -46,6 +48,40 @@ export class SelectionSystem extends System {
         this.mouseUps = fromEvent<MouseEvent>(this.sM.sm.renderer.domElement, 'mouseup');
     }
 
+    getIntersections(event: MouseEvent): THREE.Intersection[] {
+        const mouse = new THREE.Vector2();
+        const renderer = this.sM.sm.renderer;
+        const canvas = renderer.domElement;
+
+        // mouse.x = ( ( event.clientX - renderer.domElement.offsetLeft ) / renderer.domElement.width ) * 2 - 1;
+        // mouse.y = - ( ( event.clientY - renderer.domElement.offsetTop ) / renderer.domElement.height ) * 2 + 1;
+        mouse.x = (event.offsetX / canvas.width) * 2 - 1;
+        mouse.y = - (event.offsetY / canvas.height) * 2 + 1;
+        // console.log('params', mouse, canvas, event);
+        this.raycaster.setFromCamera(mouse, this.sM.sm.camera);
+
+        const intersects = this.raycaster.intersectObjects(this.sM.sm.scene.children, true);
+        return intersects
+    }
+
+    getEntities(event: MouseEvent): Entity[] {
+        const intersects = this.getIntersections(event);
+
+        const currentSelected: Entity[] = [];
+
+        for (const intersect of intersects) {
+            let current = intersect.object;
+            do {
+                const entity = this.sM.objectToEntity.get(current.uuid);
+                if (entity) {
+                    currentSelected.push(entity);
+                }
+            } while (current = current.parent)
+        }
+
+        return currentSelected;
+    }
+
     extentToVec(extent: number[]) {
         const start = this.getNormalizedScreenCoords(extent[0], extent[1]);
         const end = this.getNormalizedScreenCoords(extent[2], extent[3]);
@@ -56,6 +92,15 @@ export class SelectionSystem extends System {
     selectEntities(entities: Entity[]) {
         this.selectedEntities.forEach((e) => e.removeComponent(SelectedComponent));
         entities.forEach(e => e.addComponent(new SelectedComponent()));
+        this.selectedEntities = entities;
+    }
+
+    setupMouseSelect() {
+        this.mouseDowns.subscribe((event) => {
+            const currentSelected = this.getEntities(event);
+            console.log('down', event, currentSelected, this.selectedEntities)
+            this.selectEntities(currentSelected);
+        });  
     }
 
     setupBoxSelect() {
@@ -147,6 +192,6 @@ export class SelectionSystem extends System {
         this.cS = this.ecs.getSystem(CameraSystem);
         this.getObservables();
         this.setupBoxSelect();
-
+        this.setupMouseSelect();
     }
 }

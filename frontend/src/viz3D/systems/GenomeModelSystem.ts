@@ -22,7 +22,7 @@ const STLLoader = require('three-stl-loader')(THREE);
 export class GenomeSegment implements Component {
     readonly name = GenomeSegment.name;
     line: THREE.Line;
-    
+
     debugX: THREE.Line;
     debugY: THREE.Line;
     debugZ: THREE.Line;
@@ -155,7 +155,7 @@ export class GenomeModelSystem extends System {
         // enterSel is for adding new elements
         const enterSel = join.enter()
             .append('genome-segment-component')
-       
+
         // merge enter and update
         join
             .merge(enterSel)
@@ -168,18 +168,18 @@ export class GenomeModelSystem extends System {
                 selection.each((e: Entity) => endingPos.push(e.gameObject.transform.position.clone()));
 
                 // setup next
-                let i = 0;
-                selection.each((e: Entity) => {
-                    const start = startingPos[i];
-                    const end = endingPos[Math.min(i + 1, endingPos.length - 1)];
-                    const gs = e.getComponent(GenomeSegment);
-                    const geometry = (gs.line.geometry as THREE.Geometry);
-                    const vertices = geometry.vertices;
-                    vertices[0] = start.clone();
-                    vertices[1] = end.clone();
-                    geometry.verticesNeedUpdate = true;
-                    i += 1;
-                })
+                // let i = 0;
+                // selection.each((e: Entity) => {
+                //     const start = startingPos[i];
+                //     const end = endingPos[Math.min(i + 1, endingPos.length - 1)];
+                //     const gs = e.getComponent(GenomeSegment);
+                //     const geometry = (gs.line.geometry as THREE.Geometry);
+                //     const vertices = geometry.vertices;
+                //     vertices[0] = start.clone();
+                //     vertices[1] = end.clone();
+                //     geometry.verticesNeedUpdate = true;
+                //     i += 1;
+                // })
 
                 // Set the target for the camera system
                 if (data.length > 0) {
@@ -199,10 +199,10 @@ export class GenomeModelSystem extends System {
                 }
 
                 this.animatingSource.next(true);
-                
-                const remeshTween = new TWEEN.Tween({t: 0})
-                    .to({t: 1}, 1000)
-                    .onUpdate(({t}) => {
+
+                const remeshTween = new TWEEN.Tween({ t: 0 })
+                    .to({ t: 1 }, 1000)
+                    .onUpdate(({ t }) => {
                         startingPos.forEach((start, i) => {
                             this.lineGeometry.vertices[i] = start.clone().lerp(endingPos[i], t);
                         });
@@ -254,14 +254,14 @@ export class GenomeModelSystem extends System {
             const viewRange = this.gTS.viewRange;
             const t1 = (ic.interval.start - viewRange[0]) / (viewRange[1] - viewRange[0]);
             const t2 = (ic.interval.end - viewRange[0]) / (viewRange[1] - viewRange[0]);
-
+            
             const worldScale = this.gTS.worldSize;
 
             worldPositions = [t1, t2].map((t) => new THREE.Vector3(0, 0, t * worldScale));
         } else {
             const worldScale = this.gTS.worldSize;
             const viewRange = this.gTS.viewRange;
-            
+
             const t1 = (ic.interval.start - viewRange[0]) / (viewRange[1] - viewRange[0]);
             const t2 = (ic.interval.end - viewRange[0]) / (viewRange[1] - viewRange[0]);
 
@@ -279,6 +279,16 @@ export class GenomeModelSystem extends System {
         // set the transform to be the midpoint
         e.gameObject.transform.position.copy(start.clone());
         e.gameObject.transform.lookAt(worldPositions[1]);
+
+        const geometry = (gs.line.geometry as THREE.Geometry);
+        const vertices = geometry.vertices;
+
+        const startPos = new THREE.Vector3(0, 0, 0);
+        const endPos = new THREE.Vector3(0, 0, dir.length());
+
+        vertices[0] = startPos;
+        vertices[1] = endPos;
+        geometry.verticesNeedUpdate = true;
     }
 
     onECSInit() {
@@ -295,17 +305,17 @@ export class GenomeModelSystem extends System {
         this.lineMesh = new THREE.Line(this.lineGeometry, this.lineMaterial);
         this.lineMesh.frustumCulled = false;
 
-        // this.sM.sm.scene.add(this.lineMesh);
+        this.sM.sm.scene.add(this.lineMesh);
 
         this.subscribeOnEntityChange();
 
-        // let i = 0;
-        // const layouts: GenomeModelLayout[] = ['Linear', 'Circular'];
+        let i = 0;
+        const layouts: GenomeModelLayout[] = ['Linear', 'Circular', 'String'];
 
-        // setInterval(() => {
-        //     this.modelLayoutSource.next(layouts[i % layouts.length]);
-        //     i++;
-        // }, 10000)
+        setInterval(() => {
+            this.modelLayoutSource.next(layouts[i % layouts.length]);
+            i++;
+        }, 10000)
 
         // let num = 0;
         // setInterval(() => {
