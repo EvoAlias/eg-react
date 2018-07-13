@@ -1,6 +1,6 @@
 import _ from 'lodash';
 import OpenInterval from './interval/OpenInterval';
-import FeatureInterval from './interval/FeatureInterval';
+import { FeatureSegment } from './interval/FeatureSegment';
 import ChromosomeInterval from './interval/ChromosomeInterval';
 import { Feature } from './Feature';
 
@@ -115,14 +115,14 @@ class NavigationContext {
     }
 
     /**
-     * Given a context coordinate, gets the feature in which it is located.  Returns a FeatureInterval that expresses
+     * Given a context coordinate, gets the feature in which it is located.  Returns a FeatureSegment that expresses
      * a base number relative to the feature's start.
      *
      * @param {number} base - the context coordinate to look up
-     * @return {FeatureInterval} corresponding feature coordinate
+     * @return {FeatureSegment} corresponding feature coordinate
      * @throws {RangeError} if the base is not in this context
      */
-    convertBaseToFeatureCoordinate(base: number): FeatureInterval {
+    convertBaseToFeatureCoordinate(base: number): FeatureSegment {
         if (!this.getIsValidBase(base)) {
             throw new RangeError("Invalid base number");
         }
@@ -135,7 +135,7 @@ class NavigationContext {
         }
         const feature = this._features[index];
         const coordinate = base - this._featureStarts[index];
-        return new FeatureInterval(feature, coordinate, coordinate);
+        return new FeatureSegment(feature, coordinate, coordinate);
     }
 
     /**
@@ -153,10 +153,10 @@ class NavigationContext {
             throw new RangeError(`Cannot find feature with name '${queryName}'`);
         }
         const feature = this._features[index];
-        const absStart = this._featureStarts[index];
+        const contextStart = this._featureStarts[index];
 
         if (0 <= base && base <= feature.getLength()) {
-            return absStart + base;
+            return contextStart + base;
         } else {
             throw new RangeError(`Base number '${base}' not in feature '${queryName}'`);
         }
@@ -177,16 +177,16 @@ class NavigationContext {
             )];
         }
         const potentialOverlaps = this._chrToFeatures[chrInterval.chr] || [];
-        const absLocations = [];
+        const contextIntervals = [];
         for (const feature of potentialOverlaps) {
-            const overlap = new FeatureInterval(feature).getOverlap(chrInterval);
+            const overlap = new FeatureSegment(feature).getOverlap(chrInterval);
             if (overlap) {
-                const absStart = this.convertFeatureCoordinateToBase(feature.getName(), overlap.relativeStart);
-                const absEnd = this.convertFeatureCoordinateToBase(feature.getName(), overlap.relativeEnd);
-                absLocations.push(new OpenInterval(absStart, absEnd));
+                const start = this.convertFeatureCoordinateToBase(feature.getName(), overlap.relativeStart);
+                const end = this.convertFeatureCoordinateToBase(feature.getName(), overlap.relativeEnd);
+                contextIntervals.push(new OpenInterval(start, end));
             }
         }
-        return absLocations;
+        return contextIntervals;
     }
 
     /**
@@ -197,7 +197,7 @@ class NavigationContext {
      * Returns an open interval of context coordinates.  Throws RangeError on parse failure.
      *
      * @param {string} str - the string to parse
-     * @return {OpenInterval} the parsed absolute interval
+     * @return {OpenInterval} the context coordinates represented by the string
      * @throws {RangeError} when parsing an interval outside of the context or something otherwise nonsensical
      */
     parse(str: string): OpenInterval {
@@ -221,38 +221,38 @@ class NavigationContext {
             throw new RangeError("Wrong coordinates");
         }
 
-        const startAbsBase = this.convertFeatureCoordinateToBase(startName, startBase);
-        const endAbsBase = this.convertFeatureCoordinateToBase(endName, endBase);
-        if (startAbsBase < endAbsBase) {
-            return new OpenInterval(startAbsBase, endAbsBase);
+        const startCoordinate = this.convertFeatureCoordinateToBase(startName, startBase);
+        const endCoordinate = this.convertFeatureCoordinateToBase(endName, endBase);
+        if (startCoordinate < endCoordinate) {
+            return new OpenInterval(startCoordinate, endCoordinate);
         } else {
             throw new RangeError("Start must be before end");
         }
     }
 
     /**
-     * Queries features that overlap an open interval of context coordinates.  Returns a list of FeatureInterval.
+     * Queries features that overlap an open interval of context coordinates.  Returns a list of FeatureSegment.
      * 
-     * @param {number} queryStart - (inclusive) start of interval, as an context coordinate
-     * @param {number} queryEnd - (exclusive) end of interval, as an context coordinate
-     * @return {FeatureInterval[]} list of feature intervals
+     * @param {number} queryStart - (inclusive) start of interval, as a context coordinate
+     * @param {number} queryEnd - (exclusive) end of interval, as a context coordinate
+     * @return {FeatureSegment[]} list of feature intervals
      */
-    getFeaturesInInterval(queryStart: number, queryEnd: number): FeatureInterval[] {
+    getFeaturesInInterval(queryStart: number, queryEnd: number): FeatureSegment[] {
         const queryInterval = new OpenInterval(queryStart, queryEnd);
         const results = []
         for (let i = 0; i < this._features.length; i++) { // Check each feature for overlap with the query interval
             const feature = this._features[i];
-            const absStart = this._featureStarts[i];
-            const absEnd = absStart + feature.getLength(); // Noninclusive
-            const overlap = new OpenInterval(absStart, absEnd).getOverlap(queryInterval);
+            const start = this._featureStarts[i];
+            const end = start + feature.getLength(); // Noninclusive
+            const overlap = new OpenInterval(start, end).getOverlap(queryInterval);
 
             if (overlap) {
-                const relativeStart = overlap.start - absStart;
-                const relativeEnd = overlap.end - absStart
-                results.push(new FeatureInterval(feature, relativeStart, relativeEnd));
+                const relativeStart = overlap.start - start;
+                const relativeEnd = overlap.end - start
+                results.push(new FeatureSegment(feature, relativeStart, relativeEnd));
             } else if (results.length > 0) { // No overlap
-                // Since features are sorted by absolute start, we can be confident that there will be no more overlaps
-                // if we have seen some before.
+                // Since features are sorted by start, we can be confident that there will be no more overlaps if we
+                // have seen overlaps before.
                 break;
             }
         }
@@ -268,8 +268,8 @@ class NavigationContext {
      * @return {ChromosomeInterval[]} list of genomic locations
      */
     getLociInInterval(queryStart: number, queryEnd: number) {
-        const featureIntervals = this.getFeaturesInInterval(queryStart, queryEnd);
-        const genomeIntervals = featureIntervals.map(interval => interval.getGenomeCoordinates());
+        const featureSegments = this.getFeaturesInInterval(queryStart, queryEnd);
+        const genomeIntervals = featureSegments.map(interval => interval.getGenomeCoordinates());
         return ChromosomeInterval.mergeOverlaps(genomeIntervals);
     }
 }

@@ -1,14 +1,16 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+
 import { ActionCreators } from './AppState';
 
+import { DrawerMenu } from './DrawerMenu';
 import GenomePicker from './components/GenomePicker';
 import GenomeNavigator from './components/genomeNavigator/GenomeNavigator';
 import TrackContainer from './components/trackContainers/TrackContainer';
-import TrackManager from './components/trackManagers/TrackManager';
-import RegionSetSelector from './components/RegionSetSelector';
 import withCurrentGenome from './components/withCurrentGenome';
+import { BrowserScene } from './components/vr/BrowserScene';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import DisplayedRegionModel from './model/DisplayedRegionModel';
 import TrackModel from './model/TrackModel';
@@ -40,10 +42,11 @@ class App extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            isShowingRegionSetUI: false
+            isShowing3D: false,
         };
         this.addTracks = this.addTracks.bind(this);
         this.removeTrack = this.removeTrack.bind(this);
+        this.toggle3DScene = this.toggle3DScene.bind(this);
     }
 
     addTracks(tracks) {
@@ -56,8 +59,13 @@ class App extends React.Component {
         this.props.onTracksChanged(newTracks);
     }
 
+    toggle3DScene() {
+        this.setState(prevState => {return {isShowing3D: !prevState.isShowing3D}});
+    }
+
     render() {
         return (
+<<<<<<< HEAD
             <VrContext/>
         )
         // const {genomeConfig, viewRegion, tracks, onNewViewRegion} = this.props;
@@ -81,6 +89,25 @@ class App extends React.Component {
         //     {this.state.isShowingRegionSetUI ? <RegionSetSelector genome={genomeConfig.genome} /> : null}
         // </div>
         // );
+=======
+        <div className="container-fluid">
+            <GenomeNavigator selectedRegion={viewRegion} onRegionSelected={onNewViewRegion} />
+            <DrawerMenu
+                tracks={tracks}
+                isShowing3D={this.state.isShowing3D}
+                genomeConfig={genomeConfig}
+                onTracksAdded={this.addTracks}
+                onTrackRemoved={this.removeTrack}
+                on3DToggle={this.toggle3DScene}
+            />
+            {
+            this.state.isShowing3D &&
+                <ErrorBoundary><BrowserScene viewRegion={viewRegion} tracks={tracks} /></ErrorBoundary>
+            }
+            <TrackContainer />
+        </div>
+        );
+>>>>>>> bb6762a21c83d326c42d2e368127b82db847a1d1
     }
 }
 

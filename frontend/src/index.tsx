@@ -8,9 +8,15 @@ import registerServiceWorker from './registerServiceWorker';
 
 import HG19 from './model/genomes/hg19/hg19';
 import DisplayedRegionModel from './model/DisplayedRegionModel';
+<<<<<<< HEAD
 // import BrowserScene from './components/vr/BrowserScene';
 // import Custom3DObject from './components/vr/Custom3DObject';
 // import mergeGeometries from './components/vr/mergeGeometries';
+=======
+import { BrowserScene } from './components/vr/BrowserScene';
+import { Custom3DObject } from './components/vr/Custom3DObject';
+import { mergeGeometries } from './components/vr/mergeGeometries';
+>>>>>>> bb6762a21c83d326c42d2e368127b82db847a1d1
 
 import './index.css';
 

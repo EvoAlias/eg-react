@@ -1,4 +1,4 @@
-import NumericalTrackRenderer from './NumericalTrackRenderer';
+import { NumericalTrackConfig } from './NumericalTrackConfig';
 import { configStaticDataSource } from './configDataFetch';
 import NumericalTrack from '../trackVis/commonComponents/numerical/NumericalTrack';
 
@@ -32,15 +32,13 @@ function formatDasFeatures(data) {
     );
 }
 
-const withDataFetch = configStaticDataSource(
+export const withDataFetch = configStaticDataSource(
     props => new WorkerSource(BigWorker, props.trackModel.url), formatDasFeatures
 );
 const BigWigTrack = withDataFetch(NumericalTrack);
 
-class BigWigTrackRenderer extends NumericalTrackRenderer {
+export class BigWigTrackConfig extends NumericalTrackConfig {
     getComponent() {
         return BigWigTrack;
     }
 }
-
-export default BigWigTrackRenderer;

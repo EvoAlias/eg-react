@@ -41,7 +41,7 @@ export const DefaultAggregators = {
  * 
  * @author Silas Hsu
  */
-class FeatureAggregator {
+export class FeatureAggregator {
     /**
      * Constructs a mapping from x coordinate to all Features overlapping that location.  The mapping will be limited
      * to the range [0, width).
@@ -62,8 +62,8 @@ class FeatureAggregator {
         const placer = new FeaturePlacer();
         const placement = placer.placeFeatures(features, viewRegion, width);
         for (const placedFeature of placement) {
-            const startX = Math.floor(placedFeature.xLocation.start);
-            const endX = Math.ceil(placedFeature.xLocation.end);
+            const startX = Math.floor(placedFeature.xSpan.start);
+            const endX = Math.ceil(placedFeature.xSpan.end);
             for (let x = startX; x <= endX; x++) {
                 xToFeatures[x].push(placedFeature.feature);
             }
@@ -71,5 +71,3 @@ class FeatureAggregator {
         return xToFeatures;
     }
 }
-
-export default FeatureAggregator;
