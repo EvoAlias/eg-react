@@ -20,12 +20,9 @@
     "variable-name": false,
     "max-classes-per-file": [true, 5],
     "no-conditional-assignment": false,
-<<<<<<< HEAD
-    "no-var-requires": false
-=======
+    "no-var-requires": false,
     "no-unused-variable": { "severity": "warning" },
     "jsx-no-lambda": { "severity": "warning" }
->>>>>>> bb6762a21c83d326c42d2e368127b82db847a1d1
   },
   "jsRules": {
     "object-literal-sort-keys": false,

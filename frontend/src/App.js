@@ -65,7 +65,6 @@ class App extends React.Component {
 
     render() {
         return (
-<<<<<<< HEAD
             <VrContext/>
         )
         // const {genomeConfig, viewRegion, tracks, onNewViewRegion} = this.props;
@@ -89,25 +88,6 @@ class App extends React.Component {
         //     {this.state.isShowingRegionSetUI ? <RegionSetSelector genome={genomeConfig.genome} /> : null}
         // </div>
         // );
-=======
-        <div className="container-fluid">
-            <GenomeNavigator selectedRegion={viewRegion} onRegionSelected={onNewViewRegion} />
-            <DrawerMenu
-                tracks={tracks}
-                isShowing3D={this.state.isShowing3D}
-                genomeConfig={genomeConfig}
-                onTracksAdded={this.addTracks}
-                onTrackRemoved={this.removeTrack}
-                on3DToggle={this.toggle3DScene}
-            />
-            {
-            this.state.isShowing3D &&
-                <ErrorBoundary><BrowserScene viewRegion={viewRegion} tracks={tracks} /></ErrorBoundary>
-            }
-            <TrackContainer />
-        </div>
-        );
->>>>>>> bb6762a21c83d326c42d2e368127b82db847a1d1
     }
 }
 
