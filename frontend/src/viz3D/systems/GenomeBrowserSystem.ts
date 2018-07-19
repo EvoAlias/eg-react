@@ -114,7 +114,7 @@ export class GenomeBrowserSystem extends System {
         const width = 1000;
         const height = 100;
 
-        const hudCanvas = document.createElement('canvas');
+        const hudCanvas = document.createElement('canvas') as any;
         hudCanvas.width = width;
         hudCanvas.height = height;
         const hudBitmap = hudCanvas.getContext('2d');

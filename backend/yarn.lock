@@ -2,6 +2,27 @@
 # yarn lockfile v1
 
 
+"@types/aframe@^0.7.2":
+  version "0.7.2"
+  resolved "https://registry.yarnpkg.com/@types/aframe/-/aframe-0.7.2.tgz#665b3520886b7c30615b25de2c4f2cce1002e425"
+  dependencies:
+    "@types/three" "*"
+    "@types/tween.js" "*"
+
+"@types/three@*":
+  version "0.92.12"
+  resolved "https://registry.yarnpkg.com/@types/three/-/three-0.92.12.tgz#7c0f78bac119ccf9e3de159728fe0b12d9c6d410"
+  dependencies:
+    "@types/webvr-api" "*"
+
+"@types/tween.js@*":
+  version "16.9.0"
+  resolved "https://registry.yarnpkg.com/@types/tween.js/-/tween.js-16.9.0.tgz#af25067f86e15d2cba89b26776fc273ff7f55650"
+
+"@types/webvr-api@*":
+  version "0.0.34"
+  resolved "https://registry.yarnpkg.com/@types/webvr-api/-/webvr-api-0.0.34.tgz#8fa49028de925c7b8bce3d559d3374ce2c89ee28"
+
 accept@3.x.x:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/accept/-/accept-3.0.2.tgz#83e41cec7e1149f3fd474880423873db6c6cc9ac"

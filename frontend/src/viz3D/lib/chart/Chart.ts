@@ -81,8 +81,8 @@ export class Chart {
         this.width = width - this.margin.left - this.margin.right;
         this.height = height - this.margin.top - this.margin.bottom;
 
-        this.mainCanvas = document.createElement('canvas');
-        this.hiddenCanvas = document.createElement('canvas');
+        this.mainCanvas = document.createElement('canvas') as any;
+        this.hiddenCanvas = document.createElement('canvas') as any;
         for (const canvas of [this.mainCanvas, this.hiddenCanvas]) {
             canvas.width = width;
             canvas.height = height;

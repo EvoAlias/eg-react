@@ -2,6 +2,7 @@ import Chromosome from "../../model/genomes/Chromosome";
 import { Entity } from "../models/Entity";
 import { Component } from "../models/Component";
 import IntervalTree from "interval-tree2";
+import * as THREE from 'three';
 
 export class ChromosomeComponent implements Component{
     readonly name = ChromosomeComponent.name;

@@ -25,5 +25,8 @@
     "mongodb": "^3.0.1",
     "vision": "^5.3.1",
     "yesno": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/aframe": "^0.7.2"
   }
 }
