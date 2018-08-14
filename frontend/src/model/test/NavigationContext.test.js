@@ -65,12 +65,15 @@ describe("parse()", () => {
     });
 
     it("parses segments with spaces correctly", () => {
-        expect(instance.parse("f1\t\t\t0         10")).toEqual({start: 0, end: 10});
+        expect(instance.parse("chr1\t\t\t0         10")).toEqual({start: 0, end: 10});
     });
 
+    /* Parsing regex does not support Multi-region anymore
     it("parses two segments correctly", () => {
-        expect(instance.parse("f1:9-f3:1")).toEqual({start: 9, end: 21});
-
+        expect(instance.parse("chr1:9-chr3:1")).toEqual({start: 9, end: 21});
+    });
+    */
+    
     it("parses just a feature name correctly", () => {
         expect(instance.parse("f2")).toEqual({start: 10, end: 20});
     });
