@@ -19,7 +19,7 @@ const NAV_CONTEXT = new NavigationContext("View region", CHROMOSOMES);
 var rendered = null;
 var instance = null;
 beforeEach(() => {
-    const selectedRegion = new DisplayedRegionModel(NAV_CONTEXT, 0, 1000);
+    const selectedRegion = new DisplayedRegionModel(NAV_CONTEXT, 100, 200);
     let element = (
         <ReduxProvider>
             <GenomeNavigator ref={inst => instance=inst} selectedRegion={selectedRegion} />
@@ -39,10 +39,11 @@ const findZoomSlider = function() {
 it('renders a MainPane with the right initial models', () => {
     expect(rendered.find('MainPane')).toHaveLength(1);
     const mainPaneProps = rendered.find('MainPane').props();
-    expect(mainPaneProps.viewRegion).toEqual(new DisplayedRegionModel(NAV_CONTEXT));
-    expect(mainPaneProps.selectedRegion).toEqual(new DisplayedRegionModel(NAV_CONTEXT, 0, 1000));
+    expect(mainPaneProps.viewRegion).toEqual(new DisplayedRegionModel(NAV_CONTEXT, 0, 1000));
+    expect(mainPaneProps.selectedRegion).toEqual(new DisplayedRegionModel(NAV_CONTEXT, 100, 200)); // the view region is defaulted to the entire chromosome the selected region belongs to
 });
 
+/* dpuru: Aug 14, 2018: Disabling this test, as zoom slider is not in user anymore
 it('renders a zoom slider with the right value', () => {
     expect(findZoomSlider()).toHaveLength(1);
     const sliderProps = findZoomSlider().props();
@@ -54,12 +55,13 @@ it('renders a zoom slider with the right value', () => {
     const newSliderProps = findZoomSlider().props();
     expect(newSliderProps.value).toBeCloseTo(Math.log(1000));
 });
+*/
 
 it('sets the right view region when zooming', () => {
     instance.zoom(0.5, 0.5);
     rendered.update();
     const model = getViewModelFromMainPane();
-    expect(model.getContextCoordinates()).toEqual({start: 750, end: 2250});
+    expect(model.getContextCoordinates()).toEqual({start: 250, end: 750});
 });
 
 it('prohibits zooming in too far', () => {
@@ -74,7 +76,7 @@ it('setNewView() actually sets a new view', () => {
     const model = getViewModelFromMainPane();
     expect(model.getContextCoordinates()).toEqual({start: 1000, end: 2000});
 });
-
+/* dpuru: Aug 14, 2018: Disabling this test, as zoom slider is not in user anymore
 it('zoomSliderDragged() zooms properly', () => {
     findZoomSlider().simulate('change', {
         target: {value: Math.log(500)} // Target region size of 500
@@ -82,3 +84,4 @@ it('zoomSliderDragged() zooms properly', () => {
     const model = getViewModelFromMainPane();
     expect(model.getContextCoordinates()).toEqual({start: 1250, end: 1750});
 });
+*/
