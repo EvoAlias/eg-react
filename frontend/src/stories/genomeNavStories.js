@@ -5,7 +5,8 @@ import { ReduxProvider } from '../testUtils';
 import MainPane from '../components/genomeNavigator/MainPane';
 
 import Feature from '../model/Feature';
-import { Genome, Chromosome } from '../model/genomes/Genome';
+import { Genome } from '../model/genomes/Genome';
+import Chromosome from '../model/genomes/Chromosome';
 import DisplayedRegionModel from '../model/DisplayedRegionModel';
 import NavigationContext from '../model/NavigationContext';
 
