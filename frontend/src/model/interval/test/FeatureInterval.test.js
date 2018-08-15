@@ -31,11 +31,12 @@ describe("constructor", () => {
 
 describe("methods", () => {
     const INSTANCE = new FeatureSegment(FEATURE, 0, 5);
-
+    /* dpuru: Aug 15, 2018 : function seems to have been removed 
     it("isValidBase() is correct", () => {
         expect(INSTANCE.isValidBase(8)).toBe(true);
         expect(INSTANCE.isValidBase(-1)).toBe(false);
     });
+    */
 
     it("getName() is correct", () => {
         expect(INSTANCE.getName()).toBe("meow");

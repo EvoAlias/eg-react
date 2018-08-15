@@ -27,7 +27,7 @@ const RECORD = {
 
 it('constructs correctly', () => {
     let instance = new Gene(RECORD);
-    expect(instance.getName()).toBe("My Gene");
+    expect(instance.getName()).toBe("NR_037940");
     expect(instance.getLocus()).toEqual(new ChromosomeInterval("chr1", 0, 1000));
     expect(instance.getIsReverseStrand()).toBe(true);
     expect(instance.dbRecord).toBe(RECORD);

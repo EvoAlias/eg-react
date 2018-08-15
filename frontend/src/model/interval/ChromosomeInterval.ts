@@ -36,7 +36,7 @@ class ChromosomeInterval extends OpenInterval implements IChromosomeInterval {
      * @throws {RangeError} if parsing fails
      */
     static parse(str: string): ChromosomeInterval {
-        const regexMatch = str.match(/([\w:]+)\W+(\d+)\W+(\d+)/);
+        const regexMatch = str.match(/(\w+)[\s:]+(\d+)[\s-]+(\d+)/);
         if (regexMatch) {
             const chr = regexMatch[1];
             const start = Number.parseInt(regexMatch[2], 10);
